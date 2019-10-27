@@ -25,6 +25,10 @@
 
 ;;; Code:
 (require 'all-the-icons)
+(require 'maple-explorer-file)
+(require 'maple-explorer-imenu)
+(require 'maple-explorer-buffer)
+(require 'maple-explorer-recentf)
 
 (defun maple-explorer-icon (str icon)
   "STR ICON."
@@ -38,7 +42,7 @@
            (maple-explorer-icon value (all-the-icons-faicon "folder")))
           ((file-directory-p value)
            (maple-explorer-icon
-            (file-name-nondirectory value)
+            (file-name-nondirectory (directory-file-name value))
             (if (maple-explorer--is-open (plist-get info :status))
                 (all-the-icons-faicon "folder-open")
               (all-the-icons-faicon "folder"))))
@@ -54,7 +58,9 @@
     (maple-explorer-icon
      name
      (if children (if (maple-explorer--is-open status) (all-the-icons-faicon "folder-open") (all-the-icons-faicon "folder"))
-       (with-current-buffer value (all-the-icons-icon-for-buffer))))))
+       (with-current-buffer value
+         (let ((icon (all-the-icons-icon-for-buffer)))
+           (if (symbolp icon) (all-the-icons-faicon "file-text" :height 0.95 :v-adjust 0.05) icon)))))))
 
 (defun maple-explorer-icon-imenu-name(info)
   "Format INFO name."
@@ -73,9 +79,22 @@
                (t (all-the-icons-material "filter_center_focus")))
        (all-the-icons-faicon "cube")))))
 
+(defun maple-explorer-icon-recentf-name(info)
+  "Format INFO name."
+  (let ((name (plist-get info :name))
+        (value (plist-get info :value))
+        (status (plist-get info :status))
+        (children (plist-get info :children)))
+    (plist-put info :indent 5)
+    (if children
+        (maple-explorer-icon
+         name (if (maple-explorer--is-open status) (all-the-icons-faicon "folder-open") (all-the-icons-faicon "folder")))
+      (maple-explorer-icon (file-name-nondirectory value) (all-the-icons-icon-for-file value)))))
+
 (setq maple-explorer-file-name-function 'maple-explorer-icon-file-name)
 (setq maple-explorer-imenu-name-function 'maple-explorer-icon-imenu-name)
 (setq maple-explorer-buffer-name-function 'maple-explorer-icon-buffer-name)
+(setq maple-explorer-recentf-name-function 'maple-explorer-icon-recentf-name)
 
 (provide 'maple-explorer-icon)
 ;;; maple-explorer-icon.el ends here

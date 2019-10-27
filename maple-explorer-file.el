@@ -51,6 +51,7 @@
   (let ((value (plist-get info :value)))
     (cond ((string= value ".") ".")
           ((string= value "..") "..")
+          ((file-directory-p value) (file-name-nondirectory (directory-file-name value)))
           (t (file-name-nondirectory value)))))
 
 (defun maple-explorer-file-info(file)
@@ -85,10 +86,9 @@
 
 (defun maple-explorer-file-find-dir()
   "Find dir."
-  (directory-file-name
-   (if (and (bound-and-true-p projectile-mode) (projectile-project-p))
-       (or (projectile-project-root) default-directory)
-     default-directory)))
+  (if (and (bound-and-true-p projectile-mode) (projectile-project-p))
+      (or (projectile-project-root) default-directory)
+    default-directory))
 
 (defun maple-explorer-file-click(&optional point)
   "Open buffer on POINT."

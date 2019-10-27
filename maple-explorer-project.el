@@ -40,7 +40,9 @@
 
 (defun maple-explorer-project-info(project)
   "PROJECT."
-  (list :face 'maple-explorer-project-face
+  (list :name project
+        :face 'maple-explorer-project-face
+        :click 'maple-explorer-fold
         :children
         (let ((default-directory project)
               (maple-explorer-file-show-updir-line nil))
@@ -49,12 +51,13 @@
 
 (defun maple-explorer-project-list()
   "Get list."
-  (maple-explorer-list
-   (when (bound-and-true-p projectile-mode) (projectile-open-projects))
-   'maple-explorer-project-face
-   'maple-explorer-project-info
-   maple-explorer-project-filter-function
-   maple-explorer-project-group-function))
+  (when (bound-and-true-p projectile-mode)
+    (maple-explorer-list
+     (projectile-open-projects)
+     'maple-explorer-project-face
+     'maple-explorer-project-info
+     maple-explorer-project-filter-function
+     maple-explorer-project-group-function)))
 
 (defun maple-explorer-project-click(&optional point)
   "Open buffer on POINT."
@@ -64,7 +67,8 @@
     (unless info (error "No buffer info found"))
     (pop-to-buffer (plist-get info :value))))
 
-(maple-explorer-define project)
+(maple-explorer-define project
+  (setq maple-explorer-project-name-function maple-explorer-file-name-function))
 
 (provide 'maple-explorer-project)
 ;;; maple-explorer-project.el ends here

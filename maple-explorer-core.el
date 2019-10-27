@@ -136,9 +136,11 @@
     (let ((name     (plist-get info :name))
           (children (plist-get info :children)))
       (if children
-          (if (maple-explorer--is-open (plist-get info :status))
-              (concat (car maple-explorer-arrow) " " name)
-            (concat (cdr maple-explorer-arrow) " " name))
+          (format
+           "%s %s"
+           (if (maple-explorer--is-open (plist-get info :status))
+               (cdr maple-explorer-arrow) (car maple-explorer-arrow))
+           name)
         (or name (plist-get info :value))))))
 
 (defun maple-explorer-insert(info &optional indent)
@@ -306,13 +308,14 @@
        (defun ,refresh-function(&optional first)
          "Refresh when FIRST enable mode."
          (interactive)
-         (let ((items  (,list-function))
-               (buffer ,buffer-name))
+         (let* ((maple-explorer-name-function ,name-func)
+                (items  (,list-function))
+                (buffer ,buffer-name))
            (maple-explorer--with buffer
              (erase-buffer)
              (maple-explorer-insert items)
              (when first
-               (select-window (display-buffer buffer ',display-function))
+               (select-window (display-buffer buffer '(,display-function)))
                (,mode-function)))
            (,resize-function)))
 

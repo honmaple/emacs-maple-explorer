@@ -73,8 +73,10 @@
 (defun maple-explorer-imenu-list()
   "List."
   (with-current-buffer (or maple-explorer-imenu--buffer (current-buffer))
+    (unless (featurep 'imenu) (require 'imenu))
     (let* ((imenu-max-item-length "Unlimited")
            (imenu-auto-rescan t)
+           (imenu-auto-rescan-maxout (buffer-size))
            (items (or (ignore-errors (imenu--make-index-alist t)) (list))))
       (maple-explorer-list
        (maple-explorer-imenu--items

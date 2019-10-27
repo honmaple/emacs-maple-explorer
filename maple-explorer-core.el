@@ -28,6 +28,25 @@
   "Display imenu in window side."
   :group 'maple)
 
+(defcustom maple-explorer-arrow '("▾" . "▸")
+  "Display arrow when show or hide entry."
+  :type 'cons
+  :group 'maple-explorer)
+
+(defface maple-explorer-face
+  '((t (:inherit font-lock-type-face)))
+  "Default face for maple-buffer.")
+
+(defface maple-explorer-item-face
+  '((t (:inherit font-lock-variable-name-face)))
+  "Default item face for maple-imenu.")
+
+(defvar-local maple-explorer-name-function nil)
+
+(defun maple-explorer--is-open(status)
+  "STATUS is open."
+  (or (not status) (eq status 'open)))
+
 (defun maple-explorer--keymap (action)
   "Make keymap with ACTION."
   (let ((map (make-sparse-keymap)))
@@ -42,61 +61,32 @@
     ;;    (call-interactively (or (command-remapping ,action) ,action))))
     map))
 
-(defun maple-explorer-table-merge(key value table)
-  "Set KEY VALUE TABLE."
+(defun maple-explorer-table-merge(key value table face)
+  "Set KEY VALUE TABLE FACE."
   (unless (listp key) (setq key (list key)))
   (let* ((x (car key))
          (v (or (gethash x table) (list))))
     (cl-loop for n in (reverse (cdr key))
-             do (setq value (list :name n :children (list value) :click 'maple-explorer-fold)))
+             do (setq value (list :name n :face face :children (list value) :click 'maple-explorer-fold)))
     (let* ((k (plist-get value :name))
            (m (cl-loop for n in v when (string= (plist-get n :name) k) return n)))
       (if m (plist-put m :children (append (plist-get m :children) (plist-get value :children)))
         (setq v (append v (list value)))))
     (puthash x v table)))
 
-(defun maple-explorer-list(lists &optional info-function filter-function group-function)
-  "LISTS &OPTIONAL INFO-FUNCTION FILTER-FUNCTION GROUP-FUNCTION."
+(defun maple-explorer-list(lists &optional face info-function filter-function group-function)
+  "LISTS &OPTIONAL FACE INFO-FUNCTION FILTER-FUNCTION GROUP-FUNCTION."
   (let ((table   (make-hash-table :test 'equal)) children)
     (dolist (child lists)
       (when (or (not filter-function) (funcall filter-function child))
         (let ((group (when group-function (funcall group-function child)))
               (info  (if info-function (funcall info-function child) child)))
-          (if group (maple-explorer-table-merge group info table) (push info children)))))
+          (if group (maple-explorer-table-merge group info table face) (push info children)))))
     (maphash
      (lambda(key value)
-       (setq children (append children (list (list :name key :children value :click 'maple-explorer-fold)))))
+       (setq children (append children (list (list :name key :face face :children value :click 'maple-explorer-fold)))))
      table)
     (list :children children)))
-
-(defun maple-explorer--text(info &optional indent)
-  "Get button with BUFFER ACTION &OPTIONAL FACE."
-  (let* ((name     (plist-get info :name))
-         (face     (plist-get info :face))
-         (click    (plist-get info :click)))
-    (propertize
-     (format "%s%s" (make-string (or indent 0) ?\s) name)
-     'face (or face 'font-lock-variable-name-face)
-     'mouse-face 'highlight
-     'maple-explorer info
-     'keymap (maple-explorer--keymap click))))
-
-(defun maple-explorer-insert-text(info &optional indent)
-  "Insert INFO &OPTIONAL INDENT."
-  (let ((name     (plist-get info :name))
-        (children (plist-get info :children))
-        (indent   (or indent 0)))
-    (when (and name (not (string= name "")))
-      (insert (maple-explorer--text info indent) "\n")
-      (setq indent (+ indent 2)))
-    (when (functionp children)
-      (setq children (funcall children)))
-    (when children
-      (dolist (child children) (maple-explorer-insert-text child indent)))))
-
-(defun maple-explorer-display-buffer (buffer _alist)
-  "Display BUFFER _ALIST."
-  (display-buffer-in-side-window buffer '((side . right) (slot . -1))))
 
 (defmacro maple-explorer-with-click(&rest body)
   "Execute the forms in BODY with buffer."
@@ -139,35 +129,68 @@
             (setq point (line-end-position)) (setq stop t))))
     point))
 
-(defun maple-explorer-fold-off(&optional point)
-  "Open buffer."
-  (interactive)
-  (let ((overlay (get-char-property (or point (line-end-position)) 'maple-explorer-overlay)))
-    (when (or (not overlay) (< (overlay-start overlay) (line-beginning-position)))
-      (setq overlay (make-overlay (line-end-position) (maple-explorer--point))))
-    (overlay-put overlay 'maple-explorer-overlay overlay)
-    (overlay-put overlay 'invisible t)))
+(defun maple-explorer-name(info)
+  "Default name of INFO."
+  (if maple-explorer-name-function
+      (funcall maple-explorer-name-function info)
+    (let ((name     (plist-get info :name))
+          (children (plist-get info :children)))
+      (if children
+          (if (maple-explorer--is-open (plist-get info :status))
+              (concat (car maple-explorer-arrow) " " name)
+            (concat (cdr maple-explorer-arrow) " " name))
+        (or name (plist-get info :value))))))
+
+(defun maple-explorer-insert(info &optional indent)
+  "Insert INFO &OPTIONAL INDENT."
+  (let ((name     (plist-get info :name))
+        (face     (plist-get info :face))
+        (click    (plist-get info :click))
+        (status   (plist-get info :status))
+        (children (plist-get info :children))
+        (mindent  (plist-get info :indent))
+        (indent   (or indent 0)))
+    (when (or name (string= name ""))
+      (insert (propertize
+               (format "%s%s\n" (make-string indent ?\s) (maple-explorer-name info))
+               'face (or face 'font-lock-variable-name-face)
+               'mouse-face 'highlight
+               'maple-explorer info
+               'keymap (maple-explorer--keymap click)))
+      (setq indent (+ indent 2)))
+    (when (and (maple-explorer--is-open status) children)
+      (when (functionp children)
+        (setq children (funcall children)))
+      (dolist (child children) (maple-explorer-insert child indent)))))
 
 (defun maple-explorer-fold-on(&optional point)
-  "Open buffer."
-  (interactive)
-  (let* ((info (get-char-property (line-beginning-position) 'maple-explorer))
-         (dynamic (plist-get info :dynamic))
-         (overlay (get-char-property (or point (line-end-position)) 'maple-explorer-overlay)))
-    (if dynamic
-        (let ((children (funcall dynamic))
-              (inhibit-read-only t))
-          (plist-put info :children children)
-          (forward-line)
-          (maple-explorer-insert-text children (+ 2 (maple-explorer--indent))))
-      (when overlay (overlay-put overlay 'invisible nil)))))
+  "Open Fold with INFO and POINT."
+  (let ((info (get-char-property (or point (line-beginning-position)) 'maple-explorer))
+        (indent (maple-explorer--indent))
+        (inhibit-read-only t))
+    (plist-put info :status 'open)
+    (save-excursion
+      (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0))))
+      (delete-region (max (point-min) (- (line-beginning-position) 1)) (line-end-position)))))
+
+(defun maple-explorer-fold-off(&optional point)
+  "Open Fold with INFO and POINT."
+  (let ((info (get-char-property (or point (line-beginning-position)) 'maple-explorer))
+        (indent (maple-explorer--indent))
+        (inhibit-read-only t))
+    (plist-put info :status 'close)
+    (save-excursion
+      (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0))))
+      (delete-region (max (point-min) (- (line-beginning-position) 1)) (maple-explorer--point)))))
 
 (defun maple-explorer-fold(&optional point)
   "BODY."
   (interactive)
-  (let* ((point (or point (line-end-position)))
-         (invisible (get-char-property point 'invisible)))
-    (if invisible (maple-explorer-fold-on point) (maple-explorer-fold-off point))))
+  (let* ((info (get-char-property (or point (line-beginning-position)) 'maple-explorer))
+         (status (plist-get info :status)))
+    (if (or (not status) (eq status 'open))
+        (maple-explorer-fold-off point)
+      (maple-explorer-fold-on point))))
 
 (defmacro maple-explorer-define(name &rest body)
   "NAME &REST BODY."
@@ -187,6 +210,9 @@
          (finish-hook (intern (format "%s-finish-hook" prefix)))
 
          (mode-map (intern (format "%s-mode-map" prefix)))
+         (name-func (intern (format "%s-name-function" prefix)))
+         (group-func (intern (format "%s-group-function" prefix)))
+         (filter-func (intern (format "%s-filter-function" prefix)))
          (auto-resize (intern (format "%s-autoresize" prefix)))
          (buffer-name (intern (format "%s-buffer" prefix)))
          (buffer-width (intern (format "%s-width" prefix)))
@@ -197,14 +223,34 @@
          :type 'string
          :group ',togg-function)
 
-       (defcustom ,buffer-width '(15 . 36)
+       (defcustom ,buffer-width '(20 . 36)
          "Whether auto resize imenu window when item's length is long."
          :type 'cons
          :group ',togg-function)
 
+       (defcustom ,display-alist '((side . right) (slot . -1))
+         "Whether auto update imenu when file save or window change."
+         :type '(cons)
+         :group 'togg-function)
+
        (defcustom ,auto-resize t
          "Whether auto resize imenu window when item's length is long."
          :type 'boolean
+         :group ',togg-function)
+
+       (defcustom ,name-func nil
+         "Whether auto resize imenu window when item's length is long."
+         :type 'function
+         :group ',togg-function)
+
+       (defcustom ,filter-func nil
+         "Whether auto resize imenu window when item's length is long."
+         :type 'function
+         :group ',togg-function)
+
+       (defcustom ,group-func nil
+         "Whether auto resize imenu window when item's length is long."
+         :type 'function
          :group ',togg-function)
 
        (defcustom ,init-hook nil
@@ -264,7 +310,7 @@
                (buffer ,buffer-name))
            (maple-explorer--with buffer
              (erase-buffer)
-             (maple-explorer-insert-text items)
+             (maple-explorer-insert items)
              (when first
                (select-window (display-buffer buffer ',display-function))
                (,mode-function)))
@@ -284,8 +330,10 @@
                truncate-lines -1
                cursor-in-non-selected-windows nil)
 
+         (setq maple-explorer-name-function ,name-func)
+
          (when (bound-and-true-p evil-mode)
-           (evil-make-overriding-map maple-explorer-buffer-mode-map 'normal)))
+           (evil-make-overriding-map ,mode-map 'normal)))
 
        ,@body)))
 

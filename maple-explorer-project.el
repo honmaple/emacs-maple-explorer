@@ -30,39 +30,31 @@
   "Display imenu in window side."
   :group 'maple-explorer)
 
-(defcustom maple-explorer-project-display-alist '((side . right) (slot . -1))
-  "Whether auto update imenu when file save or window change."
-  :type '(list)
-  :group 'maple-explorer-project)
+(defface maple-explorer-project-face
+  '((t (:inherit maple-explorer-face)))
+  "Default face for maple-imenu.")
 
-(defcustom maple-explorer-project-name-function 'maple-explorer-project-name
-  "Whether auto update imenu when file save or window change."
-  :type 'function
-  :group 'maple-explorer-project)
-
-(defcustom maple-explorer-project-filter-function 'maple-explorer-project-filter
-  "Whether auto update imenu when file save or window change."
-  :type 'function
-  :group 'maple-explorer-project)
-
-(defun maple-explorer-project-name(project)
-  "PROJECT."
-  (string-trim project))
+(defface maple-explorer-project-item-face
+  '((t (:inherit maple-explorer-item-face)))
+  "Default item face for maple-imenu.")
 
 (defun maple-explorer-project-info(project)
   "PROJECT."
-  (list :name (maple-explorer-project-name project)
-        :face 'font-lock-constant-face
+  (list :face 'maple-explorer-project-face
         :children
         (let ((default-directory project)
               (maple-explorer-file-show-updir-line nil))
-          (maple-explorer-file-list t))))
+          (maple-explorer-file-list t))
+        :value project))
 
 (defun maple-explorer-project-list()
   "Get list."
   (maple-explorer-list
    (when (bound-and-true-p projectile-mode) (projectile-open-projects))
-   'maple-explorer-project-info))
+   'maple-explorer-project-face
+   'maple-explorer-project-info
+   maple-explorer-project-filter-function
+   maple-explorer-project-group-function))
 
 (defun maple-explorer-project-click(&optional point)
   "Open buffer on POINT."

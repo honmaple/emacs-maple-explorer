@@ -30,25 +30,13 @@
   "Display imenu in window side."
   :group 'maple-explorer)
 
-(defcustom maple-explorer-buffer-display-alist '((side . right) (slot . -1))
-  "Whether auto update imenu when file save or window change."
-  :type '(list)
-  :group 'maple-explorer-buffer)
+(defface maple-explorer-buffer-face
+  '((t (:inherit maple-explorer-face)))
+  "Default face for maple-buffer.")
 
-(defcustom maple-explorer-buffer-name-function 'maple-explorer-buffer-name
-  "Whether auto update imenu when file save or window change."
-  :type 'function
-  :group 'maple-explorer-buffer)
-
-(defcustom maple-explorer-buffer-filter-function 'maple-explorer-buffer-filter
-  "Whether auto update imenu when file save or window change."
-  :type 'function
-  :group 'maple-explorer-buffer)
-
-(defcustom maple-explorer-buffer-group-function 'maple-explorer-buffer-group
-  "Whether auto update imenu when file save or window change."
-  :type 'function
-  :group 'maple-explorer-buffer)
+(defface maple-explorer-buffer-item-face
+  '((t (:inherit maple-explorer-item-face)))
+  "Default item face for maple-buffer.")
 
 (defun maple-explorer-buffer-group(buffer)
   "Group BUFFER."
@@ -59,14 +47,10 @@
           (project (list "PROJECT" (file-name-nondirectory (directory-file-name project))))
           (t nil))))
 
-(defun maple-explorer-buffer-name(buffer)
-  "Format BUFFER name."
-  (string-trim (buffer-name buffer)))
-
 (defun maple-explorer-buffer-info(buffer)
   "Plist BUFFER."
-  (list :name  (funcall maple-explorer-buffer-name-function buffer)
-        :face  'font-lock-keyword-face
+  (list :name (buffer-name buffer)
+        :face  'maple-explorer-buffer-item-face
         :click 'maple-explorer-buffer-click
         :value buffer))
 
@@ -79,6 +63,7 @@
   "Get list."
   (maple-explorer-list
    (buffer-list)
+   'maple-explorer-buffer-face
    'maple-explorer-buffer-info maple-explorer-buffer-filter-function maple-explorer-buffer-group-function))
 
 (defun maple-explorer-buffer-click(&optional point)
@@ -89,7 +74,9 @@
     (unless info (error "No buffer info found"))
     (pop-to-buffer (plist-get info :value))))
 
-(maple-explorer-define buffer)
+(maple-explorer-define buffer
+  (setq maple-explorer-buffer-group-function 'maple-explorer-buffer-group)
+  (setq maple-explorer-buffer-filter-function 'maple-explorer-buffer-filter))
 
 (provide 'maple-explorer-buffer)
 ;;; maple-explorer-buffer.el ends here

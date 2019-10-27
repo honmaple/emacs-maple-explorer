@@ -40,26 +40,15 @@
   :type 'list
   :group 'maple-explorer-imenu)
 
-(defcustom maple-explorer-imenu-display-alist '((side . right) (slot . -1))
-  "Whether auto update imenu when file save or window change."
-  :type '(list)
-  :group 'maple-explorer-imenu)
+(defface maple-explorer-imenu-face
+  '((t (:inherit maple-explorer-face)))
+  "Default face for maple-imenu.")
 
-(defcustom maple-explorer-imenu-name-function 'maple-explorer-imenu-name
-  "Whether auto update imenu when file save or window change."
-  :type 'function
-  :group 'maple-explorer-imenu)
-
-(defcustom maple-explorer-imenu-filter-function 'maple-explorer-imenu-filter
-  "Whether auto update imenu when file save or window change."
-  :type 'function
-  :group 'maple-explorer-imenu)
+(defface maple-explorer-imenu-item-face
+  '((t (:inherit maple-explorer-item-face)))
+  "Default item face for maple-imenu.")
 
 (defvar maple-explorer-imenu--buffer nil)
-
-(defun maple-explorer-imenu-name(item)
-  "Format ITEM name."
-  (string-trim item))
 
 (defun maple-explorer-imenu-info(item)
   "Plist ITEM."
@@ -67,15 +56,12 @@
         (value (cdr item)))
     (append (list :name name)
             (if (listp value)
-                (list :face 'font-lock-type-face
+                (list :face 'maple-explorer-imenu-face
                       :click 'maple-explorer-fold
                       :children (mapcar 'maple-explorer-imenu-info value))
-              (list :face 'font-lock-variable-name-face
+              (list :face 'maple-explorer-imenu-item-face
                     :click 'maple-explorer-imenu-click
                     :value value)))))
-
-(defun maple-explorer-imenu-filter(item)
-  "Filter ITEM." t)
 
 (defun maple-explorer-imenu--items (items)
   "Categorize all the functions of imenu with ITEMS."
@@ -93,6 +79,7 @@
       (maple-explorer-list
        (maple-explorer-imenu--items
         (delete (assoc "*Rescan*" items) items))
+       'maple-explorer-imenu-face
        'maple-explorer-imenu-info))))
 
 (defun maple-explorer-imenu-click(&optional point)

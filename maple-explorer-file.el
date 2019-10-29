@@ -36,6 +36,17 @@
   :type 'boolean
   :group 'maple-explorer-file)
 
+(defcustom maple-explorer-file-show-hidden-files nil
+  "Whether auto update imenu when file save or window change."
+  :type 'list
+  :group 'maple-explorer-file)
+
+(defcustom maple-explorer-file-hidden-regexp-list
+  '("^\\." "\\.pyc$" "~$" "^#.*#$" "\\.elc$" "\\.o$")
+  "*The regexp list matching hidden files."
+  :type  '(repeat (choice regexp))
+  :group 'maple-explorer-file)
+
 (defface maple-explorer-file-face
   '((t (:inherit maple-explorer-item-face)))
   "Default face for maple-imenu.")
@@ -46,43 +57,63 @@
 
 (defvar maple-explorer-file--expand-list nil)
 
-(defun maple-explorer-file-name(info)
-  "Format INFO name."
-  (let ((value (plist-get info :value)))
-    (cond ((string= value ".") ".")
-          ((string= value "..") "..")
-          ((file-directory-p value) (file-name-nondirectory (directory-file-name value)))
-          (t (file-name-nondirectory value)))))
+(defmacro maple-explorer-file-with(&optional point &rest body)
+  "POINT &REST BODY."
+  (declare (indent 1))
+  `(let* ((info  (get-char-property (or ,point (point)) 'maple-explorer))
+          (name  (plist-get info :name))
+          (file  (plist-get info :value)))
+     (unless info (error "No file found at point")) ,@body))
+
+(defmacro maple-explorer-file-save-excursion(&rest body)
+  "POINT &REST BODY."
+  (declare (indent 1))
+  `(maple-explorer-file-with (point-min)
+     (let ((projectile-mode nil) (default-directory (directory-file-name file))) ,@body)))
 
 (defun maple-explorer-file-info(file)
   "FILE."
-  (let ((lists (list :name "" :value file)))
-    (cond ((string= file "..")
-           (append lists (list :click 'maple-explorer-file-updir :face 'maple-explorer-file-dir-face)))
-          ((file-directory-p file)
-           (append lists
-                   (list :click 'maple-explorer-file-opendir
-                         :face 'maple-explorer-file-dir-face
-                         :children (lambda() (let ((maple-explorer-file-show-updir-line nil)
-                                                   (projectile-mode nil)
-                                                   (default-directory file))
-                                               (maple-explorer-file-list t))))
-                   (if (member file maple-explorer-file--expand-list)
-                       (list :status 'open) (list :status 'close))))
-          (t
-           (append lists (list :click 'maple-explorer-file-openfile :face 'maple-explorer-file-face))))))
+  (cond ((or (string= file ".") (string= file ".."))
+         (list :name file
+               :face 'maple-explorer-file-dir-face
+               :click 'maple-explorer-file-updir
+               :value file))
+        ((file-directory-p file)
+         (list :name (file-name-nondirectory (directory-file-name file))
+               :face 'maple-explorer-file-dir-face
+               :value file
+               :click 'maple-explorer-file-opendir
+               :children (lambda() (let ((maple-explorer-file-show-updir-line nil)
+                                         (projectile-mode nil)
+                                         (default-directory file))
+                                     (maple-explorer-file-list)))
+               :status  (if (member file maple-explorer-file--expand-list) 'open 'close)))
+        (t (list :name (file-name-nondirectory file)
+                 :face 'maple-explorer-file-face
+                 :value file
+                 :click 'maple-explorer-file-openfile))))
 
 (defun maple-explorer-file-filter(file)
   "Filter FILE."
-  (if (string= file "..") maple-explorer-file-show-updir-line (not (string= file "."))))
+  (if (string= file "..")
+      maple-explorer-file-show-updir-line
+    (if maple-explorer-file-show-hidden-files t
+      (not (cl-loop for i in maple-explorer-file-hidden-regexp-list
+                    when (string-match-p i file) return t)))))
 
-(defun maple-explorer-file-list(&optional noparent)
-  "Get list NOPARENT."
+(defun maple-explorer-file-list(&optional isroot)
+  "Get list ISROOT."
   (let* ((dir   (maple-explorer-file-find-dir))
          (files (cl-loop for f in (directory-files dir)
                          when (funcall maple-explorer-file-filter-function f)
                          collect (maple-explorer-file-info (if (or (string= f ".") (string= f "..")) f (expand-file-name f dir))))))
-    (if noparent files (list :isheader t :name dir :value dir :face 'maple-explorer-file-dir-face :children files))))
+    (if isroot
+        (list :isroot t
+              :name dir
+              :face 'maple-explorer-file-dir-face
+              :value dir
+              :children files)
+      files)))
 
 (defun maple-explorer-file-find-dir()
   "Find dir."
@@ -123,33 +154,60 @@
 (defun maple-explorer-file-updir(&optional point)
   "POINT."
   (interactive)
-  (let* ((info (get-char-property (point-min) 'maple-explorer))
-         (value (plist-get info :value))
-         (updir (file-name-directory (directory-file-name value)))
-         (projectile-mode nil)
-         (default-directory updir))
-    (add-to-list 'maple-explorer-file--expand-list (directory-file-name value))
-    (maple-explorer-file-refresh)))
+  (maple-explorer-file-with (point-min)
+    (let ((projectile-mode nil)
+          (default-directory (file-name-directory (directory-file-name file))))
+      (add-to-list 'maple-explorer-file--expand-list (directory-file-name file))
+      (maple-explorer-file-refresh))))
 
 (defun maple-explorer-file-rename(&optional point)
   "POINT."
-  (interactive))
-
-(defun maple-explorer-file-move(&optional point)
-  "POINT."
-  (interactive))
+  (interactive)
+  (maple-explorer-file-with point
+    (let ((new-name (read-file-name (format "Rename [%s] to: " name) (file-name-directory file))))
+      (if (get-buffer new-name)
+          (error "A buffer named '%s' already exists!" new-name)
+        (rename-file file new-name 1))
+      (maple-explorer-file-refresh)
+      (message "File '%s' successfully renamed to '%s'" name (file-name-nondirectory new-name)))))
 
 (defun maple-explorer-file-copy(&optional point)
   "POINT."
-  (interactive))
+  (interactive)
+  (maple-explorer-file-with point
+    (let ((new-name (read-file-name (format "Copy [%s] to: " name) (file-name-directory file))))
+      (if (file-directory-p file)
+          (copy-directory file new-name)
+        (copy-file file new-name))
+      (maple-explorer-file-refresh)
+      (message "File '%s' successfully copy to '%s'" name (file-name-nondirectory new-name)))))
+
+(defun maple-explorer-file-root(&optional point)
+  "POINT."
+  (interactive)
+  (maple-explorer-file-with point
+    (let ((projectile-mode nil)
+          (default-directory (directory-file-name file)))
+      (maple-explorer-file-refresh))))
+
+(defun maple-explorer-file-hidden-toggle(&optional point)
+  "Hidden POINT."
+  (interactive)
+  (maple-explorer-file-save-excursion
+      (setq maple-explorer-file-show-hidden-files (not maple-explorer-file-show-hidden-files))
+    (maple-explorer-file-refresh)))
 
 (defun maple-explorer-file--finish()
   "Run when close."
   (setq maple-explorer-file--expand-list nil))
 
 (maple-explorer-define file
-  (setq maple-explorer-file-name-function 'maple-explorer-file-name)
   (setq maple-explorer-file-filter-function 'maple-explorer-file-filter)
+  (let ((map maple-explorer-file-mode-map))
+    (define-key map (kbd "R") 'maple-explorer-file-rename)
+    (define-key map (kbd "C") 'maple-explorer-file-root)
+    (define-key map (kbd "c") 'maple-explorer-file-copy)
+    (define-key map (kbd "H") 'maple-explorer-file-hidden-toggle))
   (add-hook 'maple-explorer-file-finish-hook 'maple-explorer-file--finish))
 
 (provide 'maple-explorer-file)

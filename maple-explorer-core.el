@@ -133,15 +133,16 @@
   "Default name of INFO."
   (if maple-explorer-name-function
       (funcall maple-explorer-name-function info)
-    (let ((name     (plist-get info :name))
+    (let ((isroot   (plist-get info :isroot))
+          (name     (plist-get info :name))
           (children (plist-get info :children)))
-      (if children
+      (if (and (not isroot) children)
           (format
            "%s %s"
            (if (maple-explorer--is-open (plist-get info :status))
-               (cdr maple-explorer-arrow) (car maple-explorer-arrow))
+               (car maple-explorer-arrow) (cdr maple-explorer-arrow))
            name)
-        (or name (plist-get info :value))))))
+        name))))
 
 (defun maple-explorer-insert(info &optional indent)
   "Insert INFO &OPTIONAL INDENT."
@@ -309,7 +310,7 @@
          "Refresh when FIRST enable mode."
          (interactive)
          (let* ((maple-explorer-name-function ,name-func)
-                (items  (,list-function))
+                (items  (,list-function t))
                 (buffer ,buffer-name))
            (maple-explorer--with buffer
              (erase-buffer)

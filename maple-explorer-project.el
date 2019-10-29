@@ -46,11 +46,11 @@
         :children
         (let ((default-directory project)
               (maple-explorer-file-show-updir-line nil))
-          (maple-explorer-file-list t))
+          (maple-explorer-file-list))
         :value project))
 
-(defun maple-explorer-project-list()
-  "Get list."
+(defun maple-explorer-project-list(&optional isroot)
+  "Get list ISROOT."
   (when (bound-and-true-p projectile-mode)
     (maple-explorer-list
      (projectile-open-projects)
@@ -58,14 +58,6 @@
      'maple-explorer-project-info
      maple-explorer-project-filter-function
      maple-explorer-project-group-function)))
-
-(defun maple-explorer-project-click(&optional point)
-  "Open buffer on POINT."
-  (interactive)
-  (let* ((point (or point (point)))
-         (info  (get-char-property point 'maple-explorer)))
-    (unless info (error "No buffer info found"))
-    (pop-to-buffer (plist-get info :value))))
 
 (maple-explorer-define project
   (setq maple-explorer-project-name-function maple-explorer-file-name-function))

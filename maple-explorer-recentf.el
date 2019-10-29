@@ -60,8 +60,8 @@
   "Subseq FILES."
   (cl-subseq files 0 (min (length files) maple-explorer-recentf-number)))
 
-(defun maple-explorer-recentf-list()
-  "Get list."
+(defun maple-explorer-recentf-list(&optional isroot)
+  "Get list ISROOT."
   (maple-explorer-list
    (maple-explorer-recentf-subseq
     (progn (unless recentf-mode (recentf-mode)) recentf-list))

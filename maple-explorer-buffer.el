@@ -59,8 +59,8 @@
   (and (buffer-live-p buffer)
        (not (string= (substring (buffer-name buffer) 0 1) " "))))
 
-(defun maple-explorer-buffer-list()
-  "Get list."
+(defun maple-explorer-buffer-list(&optional isroot)
+  "Get ISROOT."
   (maple-explorer-list
    (buffer-list)
    'maple-explorer-buffer-face

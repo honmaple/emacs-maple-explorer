@@ -54,7 +54,7 @@
   "Plist ITEM."
   (let ((name (car item))
         (value (cdr item)))
-    (append (list :name name)
+    (append (list :name name :isimenu t)
             (if (listp value)
                 (list :face 'maple-explorer-imenu-face
                       :click 'maple-explorer-fold
@@ -70,8 +70,8 @@
              `(("Functions" ,@fns)))
     items))
 
-(defun maple-explorer-imenu-list()
-  "List."
+(defun maple-explorer-imenu-list(&optional isroot)
+  "List ISROOT."
   (with-current-buffer (or maple-explorer-imenu--buffer (current-buffer))
     (unless (featurep 'imenu) (require 'imenu))
     (let* ((imenu-max-item-length "Unlimited")
@@ -119,9 +119,9 @@
     (add-hook 'window-configuration-change-hook 'maple-explorer-imenu--refresh)))
 
 (maple-explorer-define imenu
-  (add-hook 'maple-explorer-imenu-mode-hook 'maple-explorer-imenu--mode)
-  (add-hook 'maple-explorer-imenu-init-hook 'maple-explorer-imenu--init)
-  (add-hook 'maple-explorer-imenu-finish-hook 'maple-explorer-imenu--finish))
+                       (add-hook 'maple-explorer-imenu-mode-hook 'maple-explorer-imenu--mode)
+                       (add-hook 'maple-explorer-imenu-init-hook 'maple-explorer-imenu--init)
+                       (add-hook 'maple-explorer-imenu-finish-hook 'maple-explorer-imenu--finish))
 
 (provide 'maple-explorer-imenu)
 ;;; maple-explorer-imenu.el ends here

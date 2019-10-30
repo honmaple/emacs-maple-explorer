@@ -119,9 +119,9 @@
     (add-hook 'window-configuration-change-hook 'maple-explorer-imenu--refresh)))
 
 (maple-explorer-define imenu
-                       (add-hook 'maple-explorer-imenu-mode-hook 'maple-explorer-imenu--mode)
-                       (add-hook 'maple-explorer-imenu-init-hook 'maple-explorer-imenu--init)
-                       (add-hook 'maple-explorer-imenu-finish-hook 'maple-explorer-imenu--finish))
+  (add-hook 'maple-explorer-imenu-mode-hook 'maple-explorer-imenu--mode)
+  (add-hook 'maple-explorer-imenu-init-hook 'maple-explorer-imenu--init)
+  (add-hook 'maple-explorer-imenu-finish-hook 'maple-explorer-imenu--finish))
 
 (provide 'maple-explorer-imenu)
 ;;; maple-explorer-imenu.el ends here

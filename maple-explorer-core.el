@@ -47,20 +47,6 @@
   "STATUS is open."
   (or (not status) (eq status 'open)))
 
-(defun maple-explorer--keymap (action)
-  "Make keymap with ACTION."
-  (let ((map (make-sparse-keymap)))
-    (define-key map [mouse-1]
-      `(lambda (_)
-         (interactive "e")
-         (call-interactively (or (command-remapping ,action) ,action))))
-    (define-key map (kbd "RET") action
-      )
-    ;; `(lambda ()
-    ;;    (interactive)
-    ;;    (call-interactively (or (command-remapping ,action) ,action))))
-    map))
-
 (defun maple-explorer-table-merge(key value table face)
   "Set KEY VALUE TABLE FACE."
   (unless (listp key) (setq key (list key)))
@@ -153,13 +139,14 @@
         (children (plist-get info :children))
         (mindent  (plist-get info :indent))
         (indent   (or indent 0)))
-    (when (or name (string= name ""))
-      (insert (propertize
-               (format "%s%s\n" (make-string indent ?\s) (maple-explorer-name info))
-               'face (or face 'font-lock-variable-name-face)
-               'mouse-face 'highlight
-               'maple-explorer info
-               'keymap (maple-explorer--keymap click)))
+    (when name
+      (insert-button
+       (format "%s%s" (make-string indent ?\s) (maple-explorer-name info))
+       'action `(lambda (_) (interactive "e") (call-interactively ',click))
+       'follow-link t
+       'maple-explorer info
+       'face (or face 'font-lock-variable-name-face))
+      (insert "\n")
       (setq indent (+ indent 2)))
     (when (and (maple-explorer--is-open status) children)
       (when (functionp children)
@@ -168,23 +155,23 @@
 
 (defun maple-explorer-fold-on(&optional point)
   "Open Fold with INFO and POINT."
-  (let ((info (get-char-property (or point (line-beginning-position)) 'maple-explorer))
+  (let ((info (get-char-property (or point (point)) 'maple-explorer))
         (indent (maple-explorer--indent))
         (inhibit-read-only t))
     (plist-put info :status 'open)
     (save-excursion
-      (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0))))
-      (delete-region (max (point-min) (- (line-beginning-position) 1)) (line-end-position)))))
+      (delete-region (line-beginning-position) (min (point-max) (+ (line-end-position) 1)))
+      (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0)))))))
 
 (defun maple-explorer-fold-off(&optional point)
   "Open Fold with INFO and POINT."
-  (let ((info (get-char-property (or point (line-beginning-position)) 'maple-explorer))
+  (let ((info (get-char-property (or point (point)) 'maple-explorer))
         (indent (maple-explorer--indent))
         (inhibit-read-only t))
     (plist-put info :status 'close)
     (save-excursion
-      (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0))))
-      (delete-region (max (point-min) (- (line-beginning-position) 1)) (maple-explorer--point)))))
+      (delete-region (line-beginning-position) (min (point-max) (+ (maple-explorer--point) 1)))
+      (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0)))))))
 
 (defun maple-explorer-fold(&optional point)
   "BODY."
@@ -332,6 +319,7 @@
          (setq indent-tabs-mode nil
                buffer-read-only t
                truncate-lines -1
+               cursor-type nil
                cursor-in-non-selected-windows nil)
 
          (setq maple-explorer-name-function ,name-func)

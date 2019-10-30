@@ -190,7 +190,7 @@
           (default-directory (directory-file-name file)))
       (maple-explorer-file-refresh))))
 
-(defun maple-explorer-file-hidden-toggle(&optional point)
+(defun maple-explorer-file-omit(&optional point)
   "Hidden POINT."
   (interactive)
   (maple-explorer-file-save-excursion
@@ -207,7 +207,7 @@
     (define-key map (kbd "R") 'maple-explorer-file-rename)
     (define-key map (kbd "C") 'maple-explorer-file-root)
     (define-key map (kbd "c") 'maple-explorer-file-copy)
-    (define-key map (kbd "H") 'maple-explorer-file-hidden-toggle))
+    (define-key map (kbd "H") 'maple-explorer-file-omit))
   (add-hook 'maple-explorer-file-finish-hook 'maple-explorer-file--finish))
 
 (provide 'maple-explorer-file)

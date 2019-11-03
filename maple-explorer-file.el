@@ -55,7 +55,7 @@
   '((t (:inherit maple-explorer-face)))
   "Default item face for maple-imenu.")
 
-(defvar maple-explorer-file--expand-list nil)
+(defvar maple-explorer-file--opened-dir-list nil)
 
 (defmacro maple-explorer-file-with(&optional point &rest body)
   "POINT &REST BODY."
@@ -87,7 +87,7 @@
                                          (projectile-mode nil)
                                          (default-directory file))
                                      (maple-explorer-file-list)))
-               :status  (if (member file maple-explorer-file--expand-list) 'open 'close)))
+               :status  (if (member file maple-explorer-file--opened-dir-list) 'open 'close)))
         (t (list :name (file-name-nondirectory file)
                  :face 'maple-explorer-file-face
                  :value file
@@ -95,11 +95,11 @@
 
 (defun maple-explorer-file-filter(file)
   "Filter FILE."
-  (if (string= file "..")
-      maple-explorer-file-show-updir-line
-    (if maple-explorer-file-show-hidden-files t
-      (not (cl-loop for i in maple-explorer-file-hidden-regexp-list
-                    when (string-match-p i file) return t)))))
+  (cond ((string= file ".") nil)
+        ((string= file "..") maple-explorer-file-show-updir-line)
+        (maple-explorer-file-show-hidden-files t)
+        (t (not (cl-loop for i in maple-explorer-file-hidden-regexp-list
+                         when (string-match-p i file) return t)))))
 
 (defun maple-explorer-file-list(&optional isroot)
   "Get list ISROOT."
@@ -115,11 +115,19 @@
               :children files)
       files)))
 
+(defun maple-explorer-file-find-opened-dir(dir)
+  "Find and set opended DIR when root dir is different."
+  (let ((d (directory-file-name default-directory)))
+    (unless (string= d (directory-file-name dir))
+      (add-to-list 'maple-explorer-file--opened-dir-list d)
+      (let ((default-directory (file-name-directory d)))
+        (maple-explorer-file-find-opened-dir dir)))))
+
 (defun maple-explorer-file-find-dir()
   "Find dir."
-  (if (and (bound-and-true-p projectile-mode) (projectile-project-p))
-      (or (projectile-project-root) default-directory)
-    default-directory))
+  (let ((dir (if (and (bound-and-true-p projectile-mode) (projectile-project-p))
+                 (projectile-project-root) default-directory)))
+    (maple-explorer-file-find-opened-dir dir) dir))
 
 (defun maple-explorer-file-click(&optional point)
   "Open buffer on POINT."
@@ -146,9 +154,9 @@
          (value (plist-get info :value)))
     (if (maple-explorer--is-open status)
         (progn
-          (setq maple-explorer-file--expand-list (delete value maple-explorer-file--expand-list))
+          (setq maple-explorer-file--opened-dir-list (delete value maple-explorer-file--opened-dir-list))
           (maple-explorer-fold-off point))
-      (add-to-list 'maple-explorer-file--expand-list value)
+      (add-to-list 'maple-explorer-file--opened-dir-list value)
       (maple-explorer-fold-on point))))
 
 (defun maple-explorer-file-updir(&optional point)
@@ -157,7 +165,7 @@
   (maple-explorer-file-with (point-min)
     (let ((projectile-mode nil)
           (default-directory (file-name-directory (directory-file-name file))))
-      (add-to-list 'maple-explorer-file--expand-list (directory-file-name file))
+      (add-to-list 'maple-explorer-file--opened-dir-list (directory-file-name file))
       (maple-explorer-file-refresh))))
 
 (defun maple-explorer-file-rename(&optional point)
@@ -199,7 +207,7 @@
 
 (defun maple-explorer-file--finish()
   "Run when close."
-  (setq maple-explorer-file--expand-list nil))
+  (setq maple-explorer-file--opened-dir-list nil))
 
 (maple-explorer-define file
   (setq maple-explorer-file-filter-function 'maple-explorer-file-filter)

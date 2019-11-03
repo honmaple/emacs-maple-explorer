@@ -30,6 +30,11 @@
 (require 'maple-explorer-buffer)
 (require 'maple-explorer-recentf)
 
+;; (setq all-the-icons-icon-alist
+;;       (append
+;;        (butlast all-the-icons-icon-alist)
+;;        (list '("." all-the-icons-octicon "file-text" :v-adjust 0.0 :face all-the-icons-cyan))))
+
 (defun maple-explorer-icon (str icon)
   "STR ICON."
   (format "%s %s" (propertize "\t" 'display icon) str))

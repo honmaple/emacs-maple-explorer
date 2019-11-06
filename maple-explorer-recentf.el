@@ -20,28 +20,28 @@
 
 ;;; Commentary:
 ;;
-;; maple imenu configuration.
+;; maple explorer recentf configuration.
 ;;
 
 ;;; Code:
 (require 'maple-explorer-core)
 
 (defgroup maple-explorer-recentf nil
-  "Display imenu in window side."
+  "Display recentf files in window side."
   :group 'maple-explorer)
 
 (defcustom maple-explorer-recentf-number 49
-  "Whether auto update imenu when file save or window change."
+  "The limit number of recentf files."
   :type 'integer
   :group 'maple-explorer-recentf)
 
 (defface maple-explorer-recentf-face
   '((t (:inherit maple-explorer-face)))
-  "Default face for maple-buffer.")
+  "Default face for maple-explorer-recentf.")
 
 (defface maple-explorer-recentf-item-face
   '((t (:inherit maple-explorer-item-face)))
-  "Default item face for maple-buffer.")
+  "Default item face for maple-explorer-recentf.")
 
 (defun maple-explorer-recentf-group(file)
   "Group FILE."

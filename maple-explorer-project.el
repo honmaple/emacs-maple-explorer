@@ -20,14 +20,14 @@
 
 ;;; Commentary:
 ;;
-;; maple imenu configuration.
+;; maple explorer project configuration.
 ;;
 
 ;;; Code:
 (require 'maple-explorer-file)
 
 (defgroup maple-explorer-project nil
-  "Display imenu in window side."
+  "Display opened projects in window side."
   :group 'maple-explorer)
 
 (defface maple-explorer-project-face
@@ -40,14 +40,16 @@
 
 (defun maple-explorer-project-info(project)
   "PROJECT."
-  (list :name project
-        :face 'maple-explorer-project-face
-        :click 'maple-explorer-fold
-        :children
-        (let ((default-directory project)
-              (maple-explorer-file-show-updir-line nil))
-          (maple-explorer-file-list))
-        :value project))
+  (let ((name (directory-file-name project)))
+    (list :name name
+          :face 'maple-explorer-project-face
+          :click 'maple-explorer-fold
+          :children (lambda() (let ((maple-explorer-file-show-updir-line nil)
+                                    (projectile-mode nil)
+                                    (default-directory name))
+                                (maple-explorer-file-list)))
+          :status 'close
+          :value name)))
 
 (defun maple-explorer-project-list(&optional isroot)
   "Get list ISROOT."

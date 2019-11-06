@@ -20,7 +20,7 @@
 
 ;;; Commentary:
 ;;
-;; maple imenu configuration.
+;; maple explorer file configuration.
 ;;
 
 ;;; Code:
@@ -28,8 +28,13 @@
 (require 'maple-explorer-core)
 
 (defgroup maple-explorer-file nil
-  "Display imenu in window side."
+  "Display files in window side."
   :group 'maple-explorer)
+
+(defcustom maple-explorer-file-open-function 'find-file-other-window
+  "How to open selected file."
+  :type 'function
+  :group 'maple-explorer-file)
 
 (defcustom maple-explorer-file-show-updir-line t
   "Whether auto update imenu when file save or window change."
@@ -69,17 +74,26 @@
   "POINT &REST BODY."
   (declare (indent 1))
   `(maple-explorer-file-with (point-min)
-     (let ((projectile-mode nil) (default-directory (directory-file-name file))) ,@body)))
+     (let ((projectile-mode nil) (default-directory (maple-explorer-file--dir file))) ,@body)))
+
+(defun maple-explorer-file--dir(dir)
+  "Get true DIR name."
+  (directory-file-name (file-truename (substitute-in-file-name dir))))
 
 (defun maple-explorer-file-info(file)
   "FILE."
-  (cond ((or (string= file ".") (string= file ".."))
+  (cond ((string= file ".")
+         (list :name file
+               :face 'maple-explorer-file-dir-face
+               :click 'maple-explorer-file-refresh
+               :value file))
+        ((string= file "..")
          (list :name file
                :face 'maple-explorer-file-dir-face
                :click 'maple-explorer-file-updir
                :value file))
         ((file-directory-p file)
-         (list :name (file-name-nondirectory (directory-file-name file))
+         (list :name (file-name-nondirectory (maple-explorer-file--dir file))
                :face 'maple-explorer-file-dir-face
                :value file
                :click 'maple-explorer-file-opendir
@@ -117,8 +131,8 @@
 
 (defun maple-explorer-file-find-opened-dir(dir)
   "Find and set opended DIR when root dir is different."
-  (let ((d (directory-file-name default-directory)))
-    (unless (string= d (directory-file-name dir))
+  (let ((d (maple-explorer-file--dir default-directory)))
+    (unless (string= d (maple-explorer-file--dir dir))
       (add-to-list 'maple-explorer-file--opened-dir-list d)
       (let ((default-directory (file-name-directory d)))
         (maple-explorer-file-find-opened-dir dir)))))
@@ -144,7 +158,7 @@
   (let* ((point (or point (point)))
          (info  (get-char-property point 'maple-explorer)))
     (unless info (error "No buffer info found"))
-    (find-file-other-window (plist-get info :value))))
+    (funcall maple-explorer-file-open-function (plist-get info :value))))
 
 (defun maple-explorer-file-opendir(&optional point)
   "POINT."
@@ -163,9 +177,10 @@
   "POINT."
   (interactive)
   (maple-explorer-file-with (point-min)
-    (let ((projectile-mode nil)
-          (default-directory (file-name-directory (directory-file-name file))))
-      (add-to-list 'maple-explorer-file--opened-dir-list (directory-file-name file))
+    (let* ((dir (maple-explorer-file--dir file))
+           (projectile-mode nil)
+           (default-directory (file-name-directory dir)))
+      (add-to-list 'maple-explorer-file--opened-dir-list dir)
       (maple-explorer-file-refresh))))
 
 (defun maple-explorer-file-rename(&optional point)
@@ -195,7 +210,7 @@
   (interactive)
   (maple-explorer-file-with point
     (let ((projectile-mode nil)
-          (default-directory (directory-file-name file)))
+          (default-directory (maple-explorer-file--dir file)))
       (maple-explorer-file-refresh))))
 
 (defun maple-explorer-file-omit(&optional point)

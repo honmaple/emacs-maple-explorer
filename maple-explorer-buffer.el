@@ -20,14 +20,14 @@
 
 ;;; Commentary:
 ;;
-;; maple imenu configuration.
+;; maple explorer buffer configuration.
 ;;
 
 ;;; Code:
 (require 'maple-explorer-core)
 
 (defgroup maple-explorer-buffer nil
-  "Display imenu in window side."
+  "Display buffer list in window side."
   :group 'maple-explorer)
 
 (defface maple-explorer-buffer-face
@@ -39,7 +39,7 @@
   "Default item face for maple-buffer.")
 
 (defun maple-explorer-buffer-group(buffer)
-  "Group BUFFER."
+  "Group BUFFER list."
   (let ((name (buffer-name buffer))
         (project (when (bound-and-true-p projectile-mode) (with-current-buffer buffer (projectile-project-root)))))
     (cond ((string-match "^magit" name) "MAGIT")
@@ -48,7 +48,7 @@
           (t nil))))
 
 (defun maple-explorer-buffer-info(buffer)
-  "Plist BUFFER."
+  "Set BUFFER list info."
   (list :name (buffer-name buffer)
         :face  'maple-explorer-buffer-item-face
         :click 'maple-explorer-buffer-click

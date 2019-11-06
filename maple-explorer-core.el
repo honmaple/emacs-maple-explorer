@@ -25,7 +25,7 @@
 
 ;;; Code:
 (defgroup maple-explorer nil
-  "Display imenu in window side."
+  "Display explorer in window side."
   :group 'maple)
 
 (defcustom maple-explorer-arrow '("▾" . "▸")
@@ -35,16 +35,16 @@
 
 (defface maple-explorer-face
   '((t (:inherit font-lock-type-face)))
-  "Default face for maple-buffer.")
+  "Default face for maple-explorer.")
 
 (defface maple-explorer-item-face
   '((t (:inherit font-lock-variable-name-face)))
-  "Default item face for maple-imenu.")
+  "Default item face for maple-explorer.")
 
 (defvar-local maple-explorer-name-function nil)
 
 (defun maple-explorer--is-open(status)
-  "STATUS is open."
+  "Check STATUS is open, nil mean open."
   (or (not status) (eq status 'open)))
 
 (defun maple-explorer-table-merge(key value table face)
@@ -80,31 +80,31 @@
   `(let ((info (get-pos-property (point) 'maple-explorer))) ,@body))
 
 (defmacro maple-explorer--with-buffer (name &rest body)
-  "Execute the forms in BODY with buffer."
+  "Execute BODY with buffer NAME."
   (declare (indent 1) (doc-string 2))
   `(let ((buffer (get-buffer-create ,name)))
      (with-current-buffer buffer ,@body)))
 
 (defmacro maple-explorer--with-window (name &rest body)
-  "Execute the forms in BODY with window."
+  "Execute BODY with window NAME."
   (declare (indent 1) (doc-string 2))
   `(let ((window (get-buffer-window ,name t)))
      (when window (with-selected-window window ,@body))))
 
 (defmacro maple-explorer--with (name &rest body)
-  "Execute the forms in BODY with window."
+  "Execute BODY and insert string with buffer NAME."
   (declare (indent 1) (doc-string 2))
   `(maple-explorer--with-buffer ,name
      (let ((inhibit-read-only t))
        (save-excursion ,@body))))
 
 (defun maple-explorer--indent()
-  "Get current line level."
+  "Get current line indent."
   (let ((text (thing-at-point 'line t)))
     (- (string-width text) (string-width (string-trim-left text)))))
 
 (defun maple-explorer--point()
-  "Get point."
+  "Get next point."
   (let* ((level (maple-explorer--indent))
          (point (line-end-position))
          stop)
@@ -116,7 +116,7 @@
     point))
 
 (defun maple-explorer-name(info)
-  "Default name of INFO."
+  "Default name format of INFO."
   (if maple-explorer-name-function
       (funcall maple-explorer-name-function info)
     (let ((isroot   (plist-get info :isroot))
@@ -137,7 +137,6 @@
         (click    (plist-get info :click))
         (status   (plist-get info :status))
         (children (plist-get info :children))
-        (mindent  (plist-get info :indent))
         (indent   (or indent 0)))
     (when name
       (insert-button
@@ -154,7 +153,7 @@
       (dolist (child children) (maple-explorer-insert child indent)))))
 
 (defun maple-explorer-fold-on(&optional point)
-  "Open Fold with INFO and POINT."
+  "Turn on fold with INFO at POINT."
   (let ((info (get-char-property (or point (point)) 'maple-explorer))
         (indent (maple-explorer--indent))
         (inhibit-read-only t))
@@ -164,7 +163,7 @@
       (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0)))))))
 
 (defun maple-explorer-fold-off(&optional point)
-  "Open Fold with INFO and POINT."
+  "Turn off fold with INFO at POINT."
   (let ((info (get-char-property (or point (point)) 'maple-explorer))
         (indent (maple-explorer--indent))
         (inhibit-read-only t))
@@ -174,7 +173,7 @@
       (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0)))))))
 
 (defun maple-explorer-fold(&optional point)
-  "BODY."
+  "Toggle fold at POINT."
   (interactive)
   (let* ((info (get-char-property (or point (line-beginning-position)) 'maple-explorer))
          (status (plist-get info :status)))
@@ -183,7 +182,7 @@
       (maple-explorer-fold-on point))))
 
 (defmacro maple-explorer-define(name &rest body)
-  "NAME &REST BODY."
+  "Define new explorer NAME &REST BODY."
   (declare (indent 1) (doc-string 2))
   (let* ((prefix (format "maple-explorer-%s" name))
          (togg-function (intern prefix))
@@ -214,51 +213,51 @@
          :group ',togg-function)
 
        (defcustom ,buffer-width '(20 . 36)
-         "Whether auto resize imenu window when item's length is long."
+         "Window's length (min . max)."
          :type 'cons
          :group ',togg-function)
 
        (defcustom ,display-alist '((side . right) (slot . -1))
-         "Whether auto update imenu when file save or window change."
+         "Window display alist."
          :type '(cons)
          :group 'togg-function)
 
        (defcustom ,auto-resize t
-         "Whether auto resize imenu window when item's length is long."
+         "Whether auto resize window when item's length is long."
          :type 'boolean
          :group ',togg-function)
 
        (defcustom ,name-func nil
-         "Whether auto resize imenu window when item's length is long."
+         "Explorer name format function."
          :type 'function
          :group ',togg-function)
 
        (defcustom ,filter-func nil
-         "Whether auto resize imenu window when item's length is long."
+         "Explorer filter function."
          :type 'function
          :group ',togg-function)
 
        (defcustom ,group-func nil
-         "Whether auto resize imenu window when item's length is long."
+         "Explorer group function."
          :type 'function
          :group ',togg-function)
 
        (defcustom ,init-hook nil
-         "Init hook."
+         "Explorer init hook."
          :type 'list
          :group ',togg-function)
 
        (defcustom ,finish-hook nil
-         "Finish hook."
+         "Explorer finish hook."
          :type 'list
          :group ',togg-function)
 
        (defun ,window-function()
-         "Get window."
+         "Get current explorer window."
          (get-buffer-window ,buffer-name t))
 
        (defun ,resize-function()
-         "Get window."
+         "Resize explorer window."
          (maple-explorer--with-window ,buffer-name
            (setq window-size-fixed nil)
            (let* ((min-width (max (car ,buffer-width) window-min-width))
@@ -272,29 +271,31 @@
            (setq window-size-fixed 'width)))
 
        (defun ,display-function(buffer _alist)
-         "Display BUFFER _ALIST."
+         "Explorer window display function with BUFFER _ALIST."
          (display-buffer-in-side-window buffer ,display-alist))
 
        (defun ,show-function()
-         "Show."
+         "Show explorer window."
          (interactive)
          (run-hooks ',init-hook)
          (,refresh-function t))
 
        (defun ,hide-function()
-         "Hide."
+         "Hide explorer window."
          (interactive)
          (let ((window (,window-function)))
-           (when window (delete-window window)))
+           (when window
+             (delete-window window)
+             (kill-buffer ,buffer-name)))
          (run-hooks ',finish-hook))
 
        (defun ,togg-function()
-         "Toggle."
+         "Toggle explorer window."
          (interactive)
          (if (,window-function) (,hide-function) (,show-function)))
 
        (defun ,refresh-function(&optional first)
-         "Refresh when FIRST enable mode."
+         "Refresh explorer buffer when FIRST enable mode."
          (interactive)
          (let* ((maple-explorer-name-function ,name-func)
                 (items  (,list-function t))

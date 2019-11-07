@@ -31,9 +31,10 @@
   "Display files in window side."
   :group 'maple-explorer)
 
-(defcustom maple-explorer-file-open-function 'find-file-other-window
+(defcustom maple-explorer-file-open-action nil
   "How to open selected file."
-  :type 'function
+  :type '(choice (const right)
+                 (const below))
   :group 'maple-explorer-file)
 
 (defcustom maple-explorer-file-show-updir-line t
@@ -60,8 +61,6 @@
   '((t (:inherit maple-explorer-face)))
   "Default item face for maple-imenu.")
 
-(defvar maple-explorer-file--opened-dir-list nil)
-
 (defmacro maple-explorer-file-with(&optional point &rest body)
   "POINT &REST BODY."
   (declare (indent 1))
@@ -69,12 +68,6 @@
           (name  (plist-get info :name))
           (file  (plist-get info :value)))
      (unless info (error "No file found at point")) ,@body))
-
-(defmacro maple-explorer-file-save-excursion(&rest body)
-  "POINT &REST BODY."
-  (declare (indent 1))
-  `(maple-explorer-file-with (point-min)
-     (let ((projectile-mode nil) (default-directory (maple-explorer-file--dir file))) ,@body)))
 
 (defun maple-explorer-file--dir(dir)
   "Get true DIR name."
@@ -96,12 +89,12 @@
          (list :name (file-name-nondirectory (maple-explorer-file--dir file))
                :face 'maple-explorer-file-dir-face
                :value file
-               :click 'maple-explorer-file-opendir
+               :click 'maple-explorer-fold
                :children (lambda() (let ((maple-explorer-file-show-updir-line nil)
                                          (projectile-mode nil)
                                          (default-directory file))
                                      (maple-explorer-file-list)))
-               :status  (if (member file maple-explorer-file--opened-dir-list) 'open 'close)))
+               :status 'close))
         (t (list :name (file-name-nondirectory file)
                  :face 'maple-explorer-file-face
                  :value file
@@ -125,6 +118,7 @@
         (list :isroot t
               :name dir
               :face 'maple-explorer-file-dir-face
+              :click 'maple-explorer-fold
               :value dir
               :children files)
       files)))
@@ -133,58 +127,31 @@
   "Find and set opended DIR when root dir is different."
   (let ((d (maple-explorer-file--dir default-directory)))
     (unless (string= d (maple-explorer-file--dir dir))
-      (add-to-list 'maple-explorer-file--opened-dir-list d)
+      (add-to-list 'maple-explorer-opened-list d)
       (let ((default-directory (file-name-directory d)))
         (maple-explorer-file-find-opened-dir dir)))))
 
 (defun maple-explorer-file-find-dir()
-  "Find dir."
+  "Find root dir."
   (let ((dir (if (and (bound-and-true-p projectile-mode) (projectile-project-p))
                  (projectile-project-root) default-directory)))
     (maple-explorer-file-find-opened-dir dir) dir))
 
-(defun maple-explorer-file-click(&optional point)
-  "Open buffer on POINT."
+(defun maple-explorer-file-openfile(&optional point args)
+  "Open file at POINT with ARGS."
   (interactive)
-  (let* ((point (or point (point)))
-         (info  (get-char-property point 'maple-explorer))
-         (value (plist-get info :value)))
-    (unless info (error "No buffer info found"))
-    (pop-to-buffer (plist-get info :value))))
-
-(defun maple-explorer-file-openfile(&optional point)
-  "POINT."
-  (interactive)
-  (let* ((point (or point (point)))
-         (info  (get-char-property point 'maple-explorer)))
-    (unless info (error "No buffer info found"))
-    (funcall maple-explorer-file-open-function (plist-get info :value))))
-
-(defun maple-explorer-file-opendir(&optional point)
-  "POINT."
-  (interactive)
-  (let* ((info (get-char-property (or point (line-beginning-position)) 'maple-explorer))
-         (status (plist-get info :status))
-         (value (plist-get info :value)))
-    (if (maple-explorer--is-open status)
-        (progn
-          (setq maple-explorer-file--opened-dir-list (delete value maple-explorer-file--opened-dir-list))
-          (maple-explorer-fold-off point))
-      (add-to-list 'maple-explorer-file--opened-dir-list value)
-      (maple-explorer-fold-on point))))
-
-(defun maple-explorer-file-updir(&optional point)
-  "POINT."
-  (interactive)
-  (maple-explorer-file-with (point-min)
-    (let* ((dir (maple-explorer-file--dir file))
-           (projectile-mode nil)
-           (default-directory (file-name-directory dir)))
-      (add-to-list 'maple-explorer-file--opened-dir-list dir)
-      (maple-explorer-file-refresh))))
+  (maple-explorer-file-with point
+    (select-window (get-mru-window))
+    (cond ((or (string= args "|")
+               (eq maple-explorer-file-open-action 'right))
+           (split-window-right) (windmove-right))
+          ((or (string= args "_")
+               (eq maple-explorer-file-open-action 'below))
+           (split-window-below) (windmove-down)))
+    (find-file file)))
 
 (defun maple-explorer-file-rename(&optional point)
-  "POINT."
+  "Rename file at POINT."
   (interactive)
   (maple-explorer-file-with point
     (let ((new-name (read-file-name (format "Rename [%s] to: " name) (file-name-directory file))))
@@ -195,7 +162,7 @@
       (message "File '%s' successfully renamed to '%s'" name (file-name-nondirectory new-name)))))
 
 (defun maple-explorer-file-copy(&optional point)
-  "POINT."
+  "Copy file at POINT."
   (interactive)
   (maple-explorer-file-with point
     (let ((new-name (read-file-name (format "Copy [%s] to: " name) (file-name-directory file))))
@@ -205,33 +172,72 @@
       (maple-explorer-file-refresh)
       (message "File '%s' successfully copy to '%s'" name (file-name-nondirectory new-name)))))
 
-(defun maple-explorer-file-root(&optional point)
-  "POINT."
+(defun maple-explorer-file-create()
+  "Make new directory."
+  (interactive)
+  (let* ((file  (read-file-name "Create file: "))
+         (isdir (string-suffix-p "/" file))
+         (typ   (if isdir "directory" "file")))
+    (if (file-exists-p file)
+        (error "Cannot create %s %s: file exists" typ file)
+      (if isdir (make-directory file t) (with-temp-buffer (write-file file))))
+    (maple-explorer-file-refresh)
+    (message "Create %s '%s' successfully" typ file)))
+
+(defun maple-explorer-file-remove(&optional point)
+  "Remove file or directory at POINT."
   (interactive)
   (maple-explorer-file-with point
-    (let ((projectile-mode nil)
-          (default-directory (maple-explorer-file--dir file)))
-      (maple-explorer-file-refresh))))
+    (let ((isdir (file-directory-p file)))
+      (when (yes-or-no-p (format "Do you really want to delete [%s]?" file))
+        (if isdir (delete-directory file t) (delete-file file))
+        (maple-explorer-file-refresh)))))
 
-(defun maple-explorer-file-omit(&optional point)
-  "Hidden POINT."
+(defun maple-explorer-file-switch-root()
+  "Switch to current buffer root dir."
   (interactive)
-  (maple-explorer-file-save-excursion
-      (setq maple-explorer-file-show-hidden-files (not maple-explorer-file-show-hidden-files))
+  (setq default-directory (with-selected-window (get-mru-window) (maple-explorer-file-find-dir)))
+  (maple-explorer-file-refresh))
+
+(defun maple-explorer-file-root(&optional point)
+  "Change root to dir at POINT."
+  (interactive)
+  (maple-explorer-file-with point
+    (setq default-directory (maple-explorer-file--dir file))
+    (setq maple-explorer-closed-list (delete default-directory maple-explorer-closed-list))
     (maple-explorer-file-refresh)))
 
-(defun maple-explorer-file--finish()
-  "Run when close."
-  (setq maple-explorer-file--opened-dir-list nil))
+(defun maple-explorer-file-updir()
+  "Change root to updir."
+  (interactive)
+  (let ((dir (maple-explorer-file--dir default-directory)))
+    (setq default-directory (file-name-directory dir))
+    (add-to-list 'maple-explorer-opened-list dir)
+    (maple-explorer-file-refresh)))
+
+(defun maple-explorer-file-omit()
+  "Toggle hide or show hidden files."
+  (interactive)
+  (setq maple-explorer-file-show-hidden-files (not maple-explorer-file-show-hidden-files))
+  (maple-explorer-file-refresh))
+
+(defun maple-explorer-file--refresh(func &optional first)
+  "Around FUNC file refresh FIRST."
+  (let ((projectile-mode (when (bound-and-true-p projectile-mode) first)))
+    (funcall func first)))
 
 (maple-explorer-define file
   (setq maple-explorer-file-filter-function 'maple-explorer-file-filter)
   (let ((map maple-explorer-file-mode-map))
     (define-key map (kbd "R") 'maple-explorer-file-rename)
-    (define-key map (kbd "C") 'maple-explorer-file-root)
-    (define-key map (kbd "c") 'maple-explorer-file-copy)
+    (define-key map (kbd "C") 'maple-explorer-file-copy)
+    (define-key map (kbd "D") 'maple-explorer-file-remove)
+    (define-key map (kbd "+") 'maple-explorer-file-create)
+    (define-key map (kbd "^") 'maple-explorer-file-updir)
+    (define-key map (kbd "f") 'maple-explorer-file-root)
+    (define-key map (kbd "F") 'maple-explorer-file-switch-root)
     (define-key map (kbd "H") 'maple-explorer-file-omit))
-  (add-hook 'maple-explorer-file-finish-hook 'maple-explorer-file--finish))
+  (advice-add 'maple-explorer-file-refresh :around 'maple-explorer-file--refresh))
 
 (provide 'maple-explorer-file)
 ;;; maple-explorer-file.el ends here

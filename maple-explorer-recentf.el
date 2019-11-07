@@ -44,24 +44,24 @@
   "Default item face for maple-explorer-recentf.")
 
 (defun maple-explorer-recentf-group(file)
-  "Group FILE."
+  "Group recentf FILE."
   (let* ((default-directory (file-name-directory file))
          (project (when (bound-and-true-p projectile-mode) (projectile-project-root))))
     (when project (file-name-nondirectory (directory-file-name project)))))
 
 (defun maple-explorer-recentf-info(file)
-  "Plist FILE."
+  "Set recentf FILE info."
   (list :name (file-name-nondirectory file)
         :face  'maple-explorer-recentf-item-face
         :click 'maple-explorer-recentf-click
         :value file))
 
 (defun maple-explorer-recentf-subseq(files)
-  "Subseq FILES."
+  "Subseq recentf FILES."
   (cl-subseq files 0 (min (length files) maple-explorer-recentf-number)))
 
 (defun maple-explorer-recentf-list(&optional isroot)
-  "Get list ISROOT."
+  "Get recentf file list ISROOT mean first call."
   (maple-explorer-list
    (maple-explorer-recentf-subseq
     (progn (unless recentf-mode (recentf-mode)) recentf-list))
@@ -69,7 +69,7 @@
    'maple-explorer-recentf-info maple-explorer-recentf-filter-function maple-explorer-recentf-group-function))
 
 (defun maple-explorer-recentf-click(&optional point)
-  "Open buffer on POINT."
+  "Open recentf file at POINT."
   (interactive)
   (let* ((point (or point (point)))
          (info  (get-char-property point 'maple-explorer)))

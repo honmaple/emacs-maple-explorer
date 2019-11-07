@@ -37,11 +37,11 @@
 ;;        (list '("." all-the-icons-octicon "file-text" :v-adjust 0.0 :face all-the-icons-cyan))))
 
 (defun maple-explorer-icon (str icon)
-  "STR ICON."
+  "The ICON of maple-explorer STR."
   (format "%s %s" (propertize "\t" 'display icon) str))
 
 (defun maple-explorer-icon-file-name(info)
-  "Format INFO name."
+  "Custom maple-explorer-file INFO icon name."
   (let ((name  (plist-get info :name))
         (value (plist-get info :value)))
     (plist-put info :indent 5)
@@ -50,26 +50,26 @@
           ((file-directory-p value)
            (maple-explorer-icon
             name
-            (if (maple-explorer--is-open (plist-get info :status))
+            (if (maple-explorer--is-open info)
                 (all-the-icons-faicon "folder-open")
               (all-the-icons-faicon "folder"))))
           (t (maple-explorer-icon name (all-the-icons-icon-for-file value))))))
 
 (defun maple-explorer-icon-buffer-name(info)
-  "Format INFO name."
+  "Custom maple-explorer-buffer INFO icon name."
   (let ((name (plist-get info :name))
         (value (plist-get info :value)))
     (plist-put info :indent 5)
     (maple-explorer-icon
      name
      (if (plist-get info :children)
-         (if (maple-explorer--is-open (plist-get info :status)) (all-the-icons-faicon "folder-open") (all-the-icons-faicon "folder"))
+         (if (maple-explorer--is-open info) (all-the-icons-faicon "folder-open") (all-the-icons-faicon "folder"))
        (with-current-buffer value
          (let ((icon (all-the-icons-icon-for-buffer)))
            (if (symbolp icon) (all-the-icons-faicon "file-text" :height 0.95 :v-adjust 0.05) icon)))))))
 
 (defun maple-explorer-icon-imenu-name(info)
-  "Format INFO name."
+  "Custom maple-explorer-imenu INFO icon name."
   (let ((name (plist-get info :name)))
     (plist-put info :indent 5)
     (maple-explorer-icon
@@ -83,14 +83,13 @@
        (all-the-icons-faicon "cube")))))
 
 (defun maple-explorer-icon-recentf-name(info)
-  "Format INFO name."
+  "Custom maple-explorer-recentf INFO icon name."
   (let ((name (plist-get info :name))
-        (value (plist-get info :value))
-        (status (plist-get info :status)))
+        (value (plist-get info :value)))
     (plist-put info :indent 5)
     (if (plist-get info :children)
         (maple-explorer-icon
-         name (if (maple-explorer--is-open status) (all-the-icons-faicon "folder-open") (all-the-icons-faicon "folder")))
+         name (if (maple-explorer--is-open info) (all-the-icons-faicon "folder-open") (all-the-icons-faicon "folder")))
       (maple-explorer-icon (file-name-nondirectory value) (all-the-icons-icon-for-file value)))))
 
 (defvar maple-explorer-file-name-function-local)

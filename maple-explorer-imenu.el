@@ -20,7 +20,7 @@
 
 ;;; Commentary:
 ;;
-;; maple imenu configuration.
+;; maple explorer imenu configuration.
 ;;
 
 ;;; Code:
@@ -48,8 +48,6 @@
   '((t (:inherit maple-explorer-item-face)))
   "Default item face for maple-imenu.")
 
-(defvar maple-explorer-imenu--buffer nil)
-
 (defun maple-explorer-imenu-info(item)
   "Plist ITEM."
   (let ((name (car item))
@@ -58,6 +56,7 @@
             (if (listp value)
                 (list :face 'maple-explorer-imenu-face
                       :click 'maple-explorer-fold
+                      :value name
                       :children (mapcar 'maple-explorer-imenu-info value))
               (list :face 'maple-explorer-imenu-item-face
                     :click 'maple-explorer-imenu-click
@@ -72,7 +71,7 @@
 
 (defun maple-explorer-imenu-list(&optional isroot)
   "List ISROOT."
-  (with-current-buffer (or maple-explorer-imenu--buffer (current-buffer))
+  (with-selected-window (get-mru-window)
     (unless (featurep 'imenu) (require 'imenu))
     (let* ((imenu-max-item-length "Unlimited")
            (imenu-auto-rescan t)
@@ -98,17 +97,12 @@
 (defun maple-explorer-imenu--refresh()
   "Auto refresh imenu."
   (interactive)
-  (when (and (maple-explorer-imenu-window) (apply 'derived-mode-p maple-explorer-imenu-modes))
-    (setq maple-explorer-imenu--buffer (current-buffer))
+  (when (and (maple-explorer-imenu-window)
+             (apply 'derived-mode-p maple-explorer-imenu-modes))
     (maple-explorer-imenu-refresh)))
-
-(defun maple-explorer-imenu--init()
-  "Run when close."
-  (setq maple-explorer-imenu--buffer (current-buffer)))
 
 (defun maple-explorer-imenu--finish()
   "Run when close."
-  (setq maple-explorer-imenu--buffer nil)
   (remove-hook 'after-save-hook 'maple-explorer-imenu--refresh)
   (remove-hook 'window-configuration-change-hook 'maple-explorer-imenu--refresh))
 
@@ -120,7 +114,6 @@
 
 (maple-explorer-define imenu
   (add-hook 'maple-explorer-imenu-mode-hook 'maple-explorer-imenu--mode)
-  (add-hook 'maple-explorer-imenu-init-hook 'maple-explorer-imenu--init)
   (add-hook 'maple-explorer-imenu-finish-hook 'maple-explorer-imenu--finish))
 
 (provide 'maple-explorer-imenu)

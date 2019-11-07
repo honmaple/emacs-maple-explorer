@@ -3,7 +3,7 @@
 ;; Copyright (C) 2019 lin.jiang
 
 ;; Author: lin.jiang <mail@honmaple.com>
-;; URL: https://github.com/honmaple/emacs-maple-imenu
+;; URL: https://github.com/honmaple/emacs-maple-explorer
 
 ;; This file is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 
 ;;; Commentary:
 ;;
-;; maple imenu configuration.
+;; maple explorer configuration.
 ;;
 
 ;;; Code:
@@ -41,11 +41,29 @@
   '((t (:inherit font-lock-variable-name-face)))
   "Default item face for maple-explorer.")
 
+(defvar-local maple-explorer-opened-list nil)
+(defvar-local maple-explorer-closed-list nil)
 (defvar-local maple-explorer-name-function nil)
 
-(defun maple-explorer--is-open(status)
-  "Check STATUS is open, nil mean open."
-  (or (not status) (eq status 'open)))
+(defun maple-explorer--is-open(info)
+  "Check INFO is open, nil mean open."
+  (let ((status (plist-get info :status))
+        (value  (plist-get info :value)))
+    (cond ((and value (member value maple-explorer-opened-list)) t)
+          ((and value (member value maple-explorer-closed-list)) nil)
+          ((not status) t)
+          ((eq status 'open) t))))
+
+(defun maple-explorer--set-open(info &optional close)
+  "Set INFO when OPEN or CLOSE."
+  (let ((value (plist-get info :value)))
+    (if close (progn
+                (plist-put info :status 'close)
+                (add-to-list 'maple-explorer-closed-list value)
+                (setq maple-explorer-opened-list (delete value maple-explorer-opened-list)))
+      (plist-put info :status 'open)
+      (add-to-list 'maple-explorer-opened-list value)
+      (setq maple-explorer-closed-list (delete value maple-explorer-closed-list)))))
 
 (defun maple-explorer-table-merge(key value table face)
   "Set KEY VALUE TABLE FACE."
@@ -73,11 +91,6 @@
        (setq children (append children (list (list :name key :face face :children value :click 'maple-explorer-fold)))))
      table)
     (list :children children)))
-
-(defmacro maple-explorer-with-click(&rest body)
-  "Execute the forms in BODY with buffer."
-  (declare (indent defun))
-  `(let ((info (get-pos-property (point) 'maple-explorer))) ,@body))
 
 (defmacro maple-explorer--with-buffer (name &rest body)
   "Execute BODY with buffer NAME."
@@ -125,7 +138,7 @@
       (if (and (not isroot) children)
           (format
            "%s %s"
-           (if (maple-explorer--is-open (plist-get info :status))
+           (if (maple-explorer--is-open info)
                (car maple-explorer-arrow) (cdr maple-explorer-arrow))
            name)
         name))))
@@ -135,7 +148,6 @@
   (let ((name     (plist-get info :name))
         (face     (plist-get info :face))
         (click    (plist-get info :click))
-        (status   (plist-get info :status))
         (children (plist-get info :children))
         (indent   (or indent 0)))
     (when name
@@ -147,7 +159,7 @@
        'face (or face 'font-lock-variable-name-face))
       (insert "\n")
       (setq indent (+ indent 2)))
-    (when (and (maple-explorer--is-open status) children)
+    (when (and (maple-explorer--is-open info) children)
       (when (functionp children)
         (setq children (funcall children)))
       (dolist (child children) (maple-explorer-insert child indent)))))
@@ -157,7 +169,7 @@
   (let ((info (get-char-property (or point (point)) 'maple-explorer))
         (indent (maple-explorer--indent))
         (inhibit-read-only t))
-    (plist-put info :status 'open)
+    (maple-explorer--set-open info)
     (save-excursion
       (delete-region (line-beginning-position) (min (point-max) (+ (line-end-position) 1)))
       (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0)))))))
@@ -167,7 +179,7 @@
   (let ((info (get-char-property (or point (point)) 'maple-explorer))
         (indent (maple-explorer--indent))
         (inhibit-read-only t))
-    (plist-put info :status 'close)
+    (maple-explorer--set-open info t)
     (save-excursion
       (delete-region (line-beginning-position) (min (point-max) (+ (maple-explorer--point) 1)))
       (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0)))))))
@@ -175,9 +187,8 @@
 (defun maple-explorer-fold(&optional point)
   "Toggle fold at POINT."
   (interactive)
-  (let* ((info (get-char-property (or point (line-beginning-position)) 'maple-explorer))
-         (status (plist-get info :status)))
-    (if (or (not status) (eq status 'open))
+  (let ((info (get-char-property (or point (line-beginning-position)) 'maple-explorer)))
+    (if (maple-explorer--is-open info)
         (maple-explorer-fold-off point)
       (maple-explorer-fold-on point))))
 
@@ -212,7 +223,7 @@
          :type 'string
          :group ',togg-function)
 
-       (defcustom ,buffer-width '(20 . 36)
+       (defcustom ,buffer-width '(20 . 32)
          "Window's length (min . max)."
          :type 'cons
          :group ',togg-function)
@@ -287,6 +298,8 @@
            (when window
              (delete-window window)
              (kill-buffer ,buffer-name)))
+         (setq maple-explorer-opened-list nil)
+         (setq maple-explorer-closed-list nil)
          (run-hooks ',finish-hook))
 
        (defun ,togg-function()
@@ -315,7 +328,7 @@
            map)
          ,(format "%s-mode-map keymap." prefix))
 
-       (define-derived-mode ,mode-function special-mode ,prefix
+       (define-derived-mode ,mode-function special-mode ,(capitalize (format "%s Explorer" name))
          ,(format "%s-mode." prefix)
          (setq indent-tabs-mode nil
                buffer-read-only t

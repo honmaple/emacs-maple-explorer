@@ -205,6 +205,7 @@
          (resize-function (intern (format "%s-window-resize" prefix)))
          (display-function (intern (format "%s-display" prefix)))
          (refresh-function (intern (format "%s-refresh" prefix)))
+         (right-click-function (intern (format "%s-right-click" prefix)))
 
          (init-hook (intern (format "%s-init-hook" prefix)))
          (finish-hook (intern (format "%s-finish-hook" prefix)))
@@ -213,6 +214,7 @@
          (name-func (intern (format "%s-name-function" prefix)))
          (group-func (intern (format "%s-group-function" prefix)))
          (filter-func (intern (format "%s-filter-function" prefix)))
+         (right-menu-func (intern (format "%s-right-menu-function" prefix)))
          (auto-resize (intern (format "%s-autoresize" prefix)))
          (buffer-name (intern (format "%s-buffer" prefix)))
          (buffer-width (intern (format "%s-width" prefix)))
@@ -250,6 +252,11 @@
 
        (defcustom ,group-func nil
          "Explorer group function."
+         :type 'function
+         :group ',togg-function)
+
+       (defcustom ,right-menu-func nil
+         "Explorer right menu function."
          :type 'function
          :group ',togg-function)
 
@@ -320,6 +327,18 @@
                (select-window (display-buffer buffer '(,display-function)))
                (,mode-function)))
            (,resize-function)))
+
+       (defun ,right-click-function(event)
+         "Right click EVENT."
+         (interactive "e")
+         (unless ,right-menu-func (error "No right menu defined!"))
+         (let* ((point  (event-start event))
+                (menu   (funcall ,right-menu-func))
+                (choice (x-popup-menu event menu)))
+           (when choice
+             (with-selected-window (posn-window point)
+               (goto-char (posn-point point))
+               (call-interactively (lookup-key menu (apply 'vector choice)))))))
 
        (defvar ,mode-map
          (let ((map (make-sparse-keymap)))

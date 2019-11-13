@@ -33,8 +33,8 @@
 
 (defcustom maple-explorer-file-open-action nil
   "How to open selected file."
-  :type '(choice (const right)
-                 (const below))
+  :type '(choice (const vertical)
+                 (const horizontal))
   :group 'maple-explorer-file)
 
 (defcustom maple-explorer-file-show-updir-line t
@@ -98,7 +98,7 @@
         (t (list :name (file-name-nondirectory file)
                  :face 'maple-explorer-file-face
                  :value file
-                 :click 'maple-explorer-file-openfile))))
+                 :click 'maple-explorer-file-open))))
 
 (defun maple-explorer-file-filter(file)
   "Filter FILE."
@@ -137,18 +137,28 @@
                  (projectile-project-root) default-directory)))
     (maple-explorer-file-find-opened-dir dir) dir))
 
-(defun maple-explorer-file-openfile(&optional point args)
-  "Open file at POINT with ARGS."
+(defun maple-explorer-file-open(&optional point)
+  "Open file at POINT."
   (interactive)
   (maple-explorer-file-with point
     (select-window (get-mru-window))
-    (cond ((or (string= args "|")
-               (eq maple-explorer-file-open-action 'right))
+    (cond ((eq maple-explorer-file-open-action 'vertical)
            (split-window-right) (windmove-right))
-          ((or (string= args "_")
-               (eq maple-explorer-file-open-action 'below))
+          ((eq maple-explorer-file-open-action 'horizontal)
            (split-window-below) (windmove-down)))
     (find-file file)))
+
+(defun maple-explorer-file-open-vertical-split(&optional point)
+  "Open file at POINT with vertical split."
+  (interactive)
+  (let ((maple-explorer-file-open-action 'vertical))
+    (maple-explorer-file-open point)))
+
+(defun maple-explorer-file-open-horizontal-split(&optional point)
+  "Open file at POINT with horizontal split."
+  (interactive)
+  (let ((maple-explorer-file-open-action 'horizontal))
+    (maple-explorer-file-open point)))
 
 (defun maple-explorer-file-rename(&optional point)
   "Rename file at POINT."
@@ -215,6 +225,23 @@
     (add-to-list 'maple-explorer-opened-list dir)
     (maple-explorer-file-refresh)))
 
+(defun maple-explorer-file-right-menu()
+  "Explorer file right menu."
+  (easy-menu-create-menu
+   'maple-explorer-file-right-menu
+   (list (vector "New" 'maple-explorer-file-create)
+         ["--" #'ignore t]
+         (vector "Open" 'maple-explorer-file-open)
+         (list "Open With"
+               (vector "Open With MRU" 'maple-explorer-file-open-vertical-split)
+               (vector "Open With Vertical" 'maple-explorer-file-open-vertical-split)
+               (vector "Open With Horizontal" 'maple-explorer-file-open-horizontal-split))
+         ["--" #'ignore t]
+         (vector "Copy" 'maple-explorer-file-copy)
+         (vector "Rename" 'maple-explorer-file-rename)
+         (vector "Delete" 'maple-explorer-file-remove)
+         (vector "Refresh" 'maple-explorer-file-refresh))))
+
 (defun maple-explorer-file-omit()
   "Toggle hide or show hidden files."
   (interactive)
@@ -227,8 +254,10 @@
     (funcall func first)))
 
 (maple-explorer-define file
-  (setq maple-explorer-file-filter-function 'maple-explorer-file-filter)
+  (setq maple-explorer-file-filter-function 'maple-explorer-file-filter
+        maple-explorer-file-right-menu-function 'maple-explorer-file-right-menu)
   (let ((map maple-explorer-file-mode-map))
+    (define-key map [mouse-3] 'maple-explorer-file-right-click)
     (define-key map (kbd "R") 'maple-explorer-file-rename)
     (define-key map (kbd "C") 'maple-explorer-file-copy)
     (define-key map (kbd "D") 'maple-explorer-file-remove)

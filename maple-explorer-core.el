@@ -37,6 +37,10 @@
   '((t (:inherit font-lock-type-face)))
   "Default face for maple-explorer.")
 
+(defface maple-explorer-mark-face
+  '((t (:inherit font-lock-constant-face)))
+  "Mark face for maple-explorer.")
+
 (defface maple-explorer-item-face
   '((t (:inherit font-lock-variable-name-face)))
   "Default item face for maple-explorer.")
@@ -156,7 +160,7 @@
        'action `(lambda (_) (interactive "e") (call-interactively ',click))
        'follow-link t
        'maple-explorer info
-       'face (or face 'font-lock-variable-name-face))
+       'face (or face 'maple-explorer-item-face))
       (insert "\n")
       (setq indent (+ indent 2)))
     (when (and (maple-explorer--is-open info) children)
@@ -166,9 +170,9 @@
 
 (defun maple-explorer-fold-on(&optional point)
   "Turn on fold with INFO at POINT."
-  (let ((info (get-char-property (or point (point)) 'maple-explorer))
-        (indent (maple-explorer--indent))
-        (inhibit-read-only t))
+  (let* ((info (button-get (button-at (or point (point))) 'maple-explorer))
+         (indent (maple-explorer--indent))
+         (inhibit-read-only t))
     (maple-explorer--set-open info)
     (save-excursion
       (delete-region (line-beginning-position) (min (point-max) (+ (line-end-position) 1)))
@@ -176,9 +180,9 @@
 
 (defun maple-explorer-fold-off(&optional point)
   "Turn off fold with INFO at POINT."
-  (let ((info (get-char-property (or point (point)) 'maple-explorer))
-        (indent (maple-explorer--indent))
-        (inhibit-read-only t))
+  (let* ((info (button-get (button-at (or point (point))) 'maple-explorer))
+         (indent (maple-explorer--indent))
+         (inhibit-read-only t))
     (maple-explorer--set-open info t)
     (save-excursion
       (delete-region (line-beginning-position) (min (point-max) (+ (maple-explorer--point) 1)))
@@ -187,10 +191,50 @@
 (defun maple-explorer-fold(&optional point)
   "Toggle fold at POINT."
   (interactive)
-  (let ((info (get-char-property (or point (line-beginning-position)) 'maple-explorer)))
+  (let ((info (button-get (button-at (or point (point))) 'maple-explorer)))
     (if (maple-explorer--is-open info)
         (maple-explorer-fold-off point)
       (maple-explorer-fold-on point))))
+
+(defun maple-explorer-mark-list()
+  "Get marked list."
+  (let (mark-list button)
+    (save-excursion
+      (goto-char (point-min))
+      (while (not (eobp))
+        (setq button (button-at (point)))
+        (when (button-get button 'maple-explorer-mark)
+          (push (button-get button 'maple-explorer) mark-list))
+        (forward-line 1)))))
+
+(defun maple-explorer-mark-or-unmark(&optional point)
+  "Mark or unmark the POINT value."
+  (interactive)
+  (let ((button (button-at (or point (point)))))
+    (if (button-get button 'maple-explorer-mark)
+        (maple-explorer-unmark point)
+      (maple-explorer-mark point))))
+
+(defun maple-explorer-mark(&optional point)
+  "Mark the POINT value."
+  (interactive)
+  (let ((button (button-at (or point (point)))))
+    (button-put button 'face 'maple-explorer-mark-face)
+    (button-put button 'maple-explorer-mark t)))
+
+(defun maple-explorer-unmark(&optional point)
+  "Mark the POINT value."
+  (interactive)
+  (let ((button (button-at (or point (point)))))
+    (button-put button 'face (or (plist-get (button-get button 'maple-explorer) :face) 'maple-explorer-item-face))
+    (button-put button 'maple-explorer-mark nil)))
+
+(defun maple-explorer-unmark-all()
+  "UnMark all value."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (while (not (eobp)) (maple-explorer-unmark) (forward-line 1))))
 
 (defmacro maple-explorer-define(name &rest body)
   "Define new explorer NAME &REST BODY."
@@ -320,6 +364,8 @@
          (let* ((maple-explorer-name-function ,name-func)
                 (items  (,list-function t))
                 (buffer ,buffer-name))
+           (when (or (not items) (not (plist-get items :children)))
+             (error "There is no result"))
            (maple-explorer--with buffer
              (erase-buffer)
              (maple-explorer-insert items)

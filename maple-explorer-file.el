@@ -257,6 +257,9 @@
   (setq maple-explorer-file-filter-function 'maple-explorer-file-filter
         maple-explorer-file-right-menu-function 'maple-explorer-file-right-menu)
   (let ((map maple-explorer-file-mode-map))
+    (define-key map (kbd "m") 'maple-explorer-mark-or-unmark)
+    (define-key map (kbd "u") 'maple-explorer-mark-or-unmark)
+    (define-key map (kbd "U") 'maple-explorer-unmark-all)
     (define-key map [mouse-3] 'maple-explorer-file-right-click)
     (define-key map (kbd "R") 'maple-explorer-file-rename)
     (define-key map (kbd "C") 'maple-explorer-file-copy)

@@ -30,6 +30,7 @@
 (require 'maple-explorer-buffer)
 (require 'maple-explorer-recentf)
 (require 'maple-explorer-project)
+(require 'maple-explorer-search)
 
 ;; (setq all-the-icons-icon-alist
 ;;       (append

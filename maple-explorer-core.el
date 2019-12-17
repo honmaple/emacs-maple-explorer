@@ -98,22 +98,22 @@
 
 (defmacro maple-explorer--with-buffer (name &rest body)
   "Execute BODY with buffer NAME."
-  (declare (indent 1) (doc-string 2))
-  `(let ((buffer (get-buffer-create ,name)))
-     (with-current-buffer buffer ,@body)))
+  (declare (indent defun))
+  `(with-current-buffer (get-buffer-create ,name)
+     (let ((inhibit-read-only t)) (save-excursion ,@body))))
 
 (defmacro maple-explorer--with-window (name &rest body)
   "Execute BODY with window NAME."
-  (declare (indent 1) (doc-string 2))
+  (declare (indent defun))
   `(let ((window (get-buffer-window ,name t)))
      (when window (with-selected-window window ,@body))))
 
-(defmacro maple-explorer--with (name &rest body)
-  "Execute BODY and insert string with buffer NAME."
-  (declare (indent 1) (doc-string 2))
-  `(maple-explorer--with-buffer ,name
-     (let ((inhibit-read-only t))
-       (save-excursion ,@body))))
+(defmacro maple-explorer-with(&rest body)
+  "Excute BODY."
+  (declare (indent defun))
+  `(let* ((button (button-at (point)))
+          (info   (button-get button 'maple-explorer)))
+     (unless (or button info) (error "No item found at point")) ,@body))
 
 (defun maple-explorer--indent()
   "Get current line indent."
@@ -168,65 +168,74 @@
         (setq children (funcall children)))
       (dolist (child children) (maple-explorer-insert child indent)))))
 
-(defun maple-explorer-fold-on(&optional point)
-  "Turn on fold with INFO at POINT."
-  (let* ((info (button-get (button-at (or point (point))) 'maple-explorer))
-         (indent (maple-explorer--indent))
-         (inhibit-read-only t))
-    (maple-explorer--set-open info)
-    (save-excursion
-      (delete-region (line-beginning-position) (min (point-max) (+ (line-end-position) 1)))
-      (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0)))))))
-
-(defun maple-explorer-fold-off(&optional point)
-  "Turn off fold with INFO at POINT."
-  (let* ((info (button-get (button-at (or point (point))) 'maple-explorer))
-         (indent (maple-explorer--indent))
-         (inhibit-read-only t))
-    (maple-explorer--set-open info t)
-    (save-excursion
-      (delete-region (line-beginning-position) (min (point-max) (+ (maple-explorer--point) 1)))
-      (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0)))))))
-
-(defun maple-explorer-fold(&optional point)
-  "Toggle fold at POINT."
+(defun maple-explorer-fold-on()
+  "Turn on fold with INFO at point."
   (interactive)
-  (let ((info (button-get (button-at (or point (point))) 'maple-explorer)))
-    (if (maple-explorer--is-open info)
-        (maple-explorer-fold-off point)
-      (maple-explorer-fold-on point))))
+  (maple-explorer-with
+    (let ((indent (maple-explorer--indent))
+          (inhibit-read-only t))
+      (maple-explorer--set-open info)
+      (save-excursion
+        (delete-region (line-beginning-position) (min (point-max) (+ (line-end-position) 1)))
+        (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0))))))))
 
-(defun maple-explorer-mark-list()
-  "Get marked list."
-  (let (mark-list button)
+(defun maple-explorer-fold-off()
+  "Turn off fold with INFO at point."
+  (interactive)
+  (maple-explorer-with
+    (let* ((indent (maple-explorer--indent))
+           (inhibit-read-only t))
+      (maple-explorer--set-open info t)
+      (save-excursion
+        (delete-region (line-beginning-position) (min (point-max) (+ (maple-explorer--point) 1)))
+        (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0))))))))
+
+(defun maple-explorer-fold()
+  "Toggle fold at point."
+  (interactive)
+  (maple-explorer-with
+    (call-interactively
+     (if (maple-explorer--is-open info)
+         'maple-explorer-fold-off 'maple-explorer-fold-on))))
+
+(defun maple-explorer-filter-list(&optional filter key)
+  "Get KEY list with FILTER function."
+  (let (filter-list button info)
     (save-excursion
       (goto-char (point-min))
       (while (not (eobp))
         (setq button (button-at (point)))
-        (when (button-get button 'maple-explorer-mark)
-          (push (button-get button 'maple-explorer) mark-list))
-        (forward-line 1)))))
+        (setq info   (button-get button 'maple-explorer))
+        (when (and filter (funcall filter button info))
+          (push (if key (plist-get info key) info) filter-list))
+        (forward-line 1)))
+    filter-list))
 
-(defun maple-explorer-mark-or-unmark(&optional point)
+(defun maple-explorer-mark-list()
+  "Get marked list."
+  (maple-explorer-filter-list
+   (lambda(button _info) (button-get button 'maple-explorer-mark))))
+
+(defun maple-explorer-mark-or-unmark()
   "Mark or unmark the POINT value."
   (interactive)
-  (let ((button (button-at (or point (point)))))
-    (if (button-get button 'maple-explorer-mark)
-        (maple-explorer-unmark point)
-      (maple-explorer-mark point))))
+  (maple-explorer-with
+    (call-interactively
+     (if (button-get button 'maple-explorer-mark)
+         'maple-explorer-unmark 'maple-explorer-mark))))
 
-(defun maple-explorer-mark(&optional point)
+(defun maple-explorer-mark()
   "Mark the POINT value."
   (interactive)
-  (let ((button (button-at (or point (point)))))
+  (maple-explorer-with
     (button-put button 'face 'maple-explorer-mark-face)
     (button-put button 'maple-explorer-mark t)))
 
-(defun maple-explorer-unmark(&optional point)
+(defun maple-explorer-unmark()
   "Mark the POINT value."
   (interactive)
-  (let ((button (button-at (or point (point)))))
-    (button-put button 'face (or (plist-get (button-get button 'maple-explorer) :face) 'maple-explorer-item-face))
+  (maple-explorer-with
+    (button-put button 'face (or (plist-get info :face) 'maple-explorer-item-face))
     (button-put button 'maple-explorer-mark nil)))
 
 (defun maple-explorer-unmark-all()
@@ -366,7 +375,7 @@
                 (buffer ,buffer-name))
            (when (or (not items) (not (plist-get items :children)))
              (error "There is no result"))
-           (maple-explorer--with buffer
+           (maple-explorer--with-buffer buffer
              (erase-buffer)
              (maple-explorer-insert items)
              (when first

@@ -66,13 +66,10 @@
    'maple-explorer-buffer-face
    'maple-explorer-buffer-info maple-explorer-buffer-filter-function maple-explorer-buffer-group-function))
 
-(defun maple-explorer-buffer-click(&optional point)
+(defun maple-explorer-buffer-click()
   "Open buffer on POINT."
   (interactive)
-  (let* ((point (or point (point)))
-         (info  (get-char-property point 'maple-explorer)))
-    (unless info (error "No buffer info found"))
-    (pop-to-buffer (plist-get info :value))))
+  (maple-explorer-with (pop-to-buffer (plist-get info :value))))
 
 (maple-explorer-define buffer
   (setq maple-explorer-buffer-group-function 'maple-explorer-buffer-group)

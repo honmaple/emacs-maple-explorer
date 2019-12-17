@@ -61,13 +61,13 @@
   '((t (:inherit maple-explorer-face)))
   "Default item face for maple-imenu.")
 
-(defmacro maple-explorer-file-with(&optional point &rest body)
+(defmacro maple-explorer-file-with(&rest body)
   "POINT &REST BODY."
-  (declare (indent 1))
-  `(let* ((info  (get-char-property (or ,point (point)) 'maple-explorer))
-          (name  (plist-get info :name))
-          (file  (plist-get info :value)))
-     (unless info (error "No file found at point")) ,@body))
+  (declare (indent defun))
+  `(maple-explorer-with
+     (let ((name  (plist-get info :name))
+           (file  (plist-get info :value)))
+       ,@body)))
 
 (defun maple-explorer-file--dir(dir)
   "Get true DIR name."
@@ -137,10 +137,10 @@
                  (projectile-project-root) default-directory)))
     (maple-explorer-file-find-opened-dir dir) dir))
 
-(defun maple-explorer-file-open(&optional point)
-  "Open file at POINT."
+(defun maple-explorer-file-open()
+  "Open file at point."
   (interactive)
-  (maple-explorer-file-with point
+  (maple-explorer-file-with
     (select-window (get-mru-window))
     (cond ((eq maple-explorer-file-open-action 'vertical)
            (split-window-right) (windmove-right))
@@ -148,22 +148,22 @@
            (split-window-below) (windmove-down)))
     (find-file file)))
 
-(defun maple-explorer-file-open-vertical-split(&optional point)
-  "Open file at POINT with vertical split."
+(defun maple-explorer-file-open-vertical-split()
+  "Open file at point with vertical split."
   (interactive)
   (let ((maple-explorer-file-open-action 'vertical))
-    (maple-explorer-file-open point)))
+    (call-interactively 'maple-explorer-file-open)))
 
-(defun maple-explorer-file-open-horizontal-split(&optional point)
-  "Open file at POINT with horizontal split."
+(defun maple-explorer-file-open-horizontal-split()
+  "Open file at point with horizontal split."
   (interactive)
   (let ((maple-explorer-file-open-action 'horizontal))
-    (maple-explorer-file-open point)))
+    (call-interactively 'maple-explorer-file-open)))
 
-(defun maple-explorer-file-rename(&optional point)
-  "Rename file at POINT."
+(defun maple-explorer-file-rename()
+  "Rename file at point."
   (interactive)
-  (maple-explorer-file-with point
+  (maple-explorer-file-with
     (let ((new-name (read-file-name (format "Rename [%s] to: " name) (file-name-directory file))))
       (if (get-buffer new-name)
           (error "A buffer named '%s' already exists!" new-name)
@@ -171,10 +171,10 @@
       (maple-explorer-file-refresh)
       (message "File '%s' successfully renamed to '%s'" name (file-name-nondirectory new-name)))))
 
-(defun maple-explorer-file-copy(&optional point)
-  "Copy file at POINT."
+(defun maple-explorer-file-copy()
+  "Copy file at point."
   (interactive)
-  (maple-explorer-file-with point
+  (maple-explorer-file-with
     (let ((new-name (read-file-name (format "Copy [%s] to: " name) (file-name-directory file))))
       (if (file-directory-p file)
           (copy-directory file new-name)
@@ -194,10 +194,10 @@
     (maple-explorer-file-refresh)
     (message "Create %s '%s' successfully" typ file)))
 
-(defun maple-explorer-file-remove(&optional point)
-  "Remove file or directory at POINT."
+(defun maple-explorer-file-remove()
+  "Remove file or directory at point."
   (interactive)
-  (maple-explorer-file-with point
+  (maple-explorer-file-with
     (let ((isdir (file-directory-p file)))
       (when (yes-or-no-p (format "Do you really want to delete [%s]?" file))
         (if isdir (delete-directory file t) (delete-file file))
@@ -209,10 +209,10 @@
   (setq default-directory (with-selected-window (get-mru-window) (maple-explorer-file-find-dir)))
   (maple-explorer-file-refresh))
 
-(defun maple-explorer-file-root(&optional point)
-  "Change root to dir at POINT."
+(defun maple-explorer-file-root()
+  "Change root to dir at point."
   (interactive)
-  (maple-explorer-file-with point
+  (maple-explorer-file-with
     (setq default-directory (maple-explorer-file--dir file))
     (setq maple-explorer-closed-list (delete default-directory maple-explorer-closed-list))
     (maple-explorer-file-refresh)))
@@ -237,6 +237,7 @@
                (vector "Open With Vertical" 'maple-explorer-file-open-vertical-split)
                (vector "Open With Horizontal" 'maple-explorer-file-open-horizontal-split))
          ["--" #'ignore t]
+         (vector "Mark" 'maple-explorer-mark-or-unmark)
          (vector "Copy" 'maple-explorer-file-copy)
          (vector "Rename" 'maple-explorer-file-rename)
          (vector "Delete" 'maple-explorer-file-remove)

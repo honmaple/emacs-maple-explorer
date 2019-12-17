@@ -83,16 +83,14 @@
        'maple-explorer-imenu-face
        'maple-explorer-imenu-info))))
 
-(defun maple-explorer-imenu-click(&optional point)
+(defun maple-explorer-imenu-click()
   "Open buffer on POINT."
   (interactive)
-  (let* ((point (or point (point)))
-         (info  (get-char-property point 'maple-explorer))
-         (value (plist-get info :value)))
-    (unless info (error "No buffer info found"))
-    (unless (markerp value) (error "No marker info found"))
-    (pop-to-buffer (marker-buffer value))
-    (goto-char (marker-position value))))
+  (maple-explorer-with
+    (let ((value (plist-get info :value)))
+      (unless (markerp value) (error "No marker info found"))
+      (pop-to-buffer (marker-buffer value))
+      (goto-char (marker-position value)))))
 
 (defun maple-explorer-imenu--refresh()
   "Auto refresh imenu."

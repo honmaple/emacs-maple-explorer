@@ -68,13 +68,10 @@
    'maple-explorer-recentf-face
    'maple-explorer-recentf-info maple-explorer-recentf-filter-function maple-explorer-recentf-group-function))
 
-(defun maple-explorer-recentf-click(&optional point)
-  "Open recentf file at POINT."
+(defun maple-explorer-recentf-click()
+  "Open recentf file at point."
   (interactive)
-  (let* ((point (or point (point)))
-         (info  (get-char-property point 'maple-explorer)))
-    (unless info (error "No buffer info found"))
-    (find-file-other-window (plist-get info :value))))
+  (maple-explorer-with (find-file-other-window (plist-get info :value))))
 
 (maple-explorer-define recentf
   (setq maple-explorer-recentf-group-function 'maple-explorer-recentf-group))

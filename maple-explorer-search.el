@@ -76,14 +76,14 @@
    'maple-explorer-search-face
    'maple-explorer-search-info maple-explorer-search-filter-function maple-explorer-search-group-function))
 
-(defun maple-explorer-search-click(&optional point)
+(defun maple-explorer-search-click()
   "Open buffer on POINT."
   (interactive)
-  (let* ((info (button-get (button-at (or point (point))) 'maple-explorer))
-         (value (plist-get info :value)))
-    (select-window (get-mru-window))
-    (find-file (car value))
-    (goto-line (cdr value))))
+  (maple-explorer-with
+    (let ((value (plist-get info :value)))
+      (select-window (get-mru-window))
+      (find-file (car value))
+      (goto-line (cdr value)))))
 
 (defun maple-explorer-search--finish()
   "Run when close."
@@ -95,7 +95,7 @@
   (setq maple-explorer-search-display-alist '((side . left) (slot . -1)))
   (add-hook 'maple-explorer-search-finish-hook 'maple-explorer-search--finish))
 
-(defun maple-explorer-search-string(keyword)
+(defun maple-explorer-search(keyword)
   "Custom search KEYWORD command."
   (interactive (list (read-from-minibuffer "Search: ")))
   (if (< (length keyword) 3)
@@ -103,7 +103,7 @@
     (setq maple-explorer-search-keyword keyword)
     (if (maple-explorer-search-window)
         (maple-explorer-search-refresh)
-      (maple-explorer-search))))
+      (maple-explorer-search-show))))
 
 (provide 'maple-explorer-search)
 ;;; maple-explorer-search.el ends here

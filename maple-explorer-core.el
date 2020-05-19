@@ -33,6 +33,11 @@
   :type 'cons
   :group 'maple-explorer)
 
+(defcustom maple-explorer-indent 2
+  "Display indent."
+  :type 'integer
+  :group 'maple-explorer)
+
 (defface maple-explorer-face
   '((t (:inherit font-lock-type-face)))
   "Default face for maple-explorer.")
@@ -92,7 +97,7 @@
           (if group (maple-explorer-table-merge group info table face) (push info children)))))
     (maphash
      (lambda(key value)
-       (setq children (append children (list (list :name key :face face :children value :click 'maple-explorer-fold)))))
+       (setq children (append children (list (list :status 'close :name key :face face :children value :click 'maple-explorer-fold)))))
      table)
     (list :children children)))
 
@@ -162,33 +167,33 @@
        'maple-explorer info
        'face (or face 'maple-explorer-item-face))
       (insert "\n")
-      (setq indent (+ indent 2)))
+      (setq indent (+ indent maple-explorer-indent)))
     (when (and (maple-explorer--is-open info) children)
       (when (functionp children)
         (setq children (funcall children)))
       (dolist (child children) (maple-explorer-insert child indent)))))
 
-(defun maple-explorer-fold-on()
-  "Turn on fold with INFO at point."
-  (interactive)
-  (maple-explorer-with
-    (let ((indent (maple-explorer--indent))
-          (inhibit-read-only t))
-      (maple-explorer--set-open info)
-      (save-excursion
-        (delete-region (line-beginning-position) (min (point-max) (+ (line-end-position) 1)))
-        (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0))))))))
-
-(defun maple-explorer-fold-off()
-  "Turn off fold with INFO at point."
-  (interactive)
+(defun maple-explorer--fold(&optional status)
+  "Turn on or off fold with STATUS at point."
   (maple-explorer-with
     (let* ((indent (maple-explorer--indent))
            (inhibit-read-only t))
-      (maple-explorer--set-open info t)
+      (maple-explorer--set-open info status)
       (save-excursion
-        (delete-region (line-beginning-position) (min (point-max) (+ (maple-explorer--point) 1)))
+        (delete-region
+         (line-beginning-position)
+         (min (point-max) (+ (maple-explorer--point) 1)))
         (maple-explorer-insert info (max 0 (- indent (or (plist-get info :indent) 0))))))))
+
+(defun maple-explorer-fold-on()
+  "Turn on fold at point."
+  (interactive)
+  (maple-explorer--fold))
+
+(defun maple-explorer-fold-off()
+  "Turn off fold at point."
+  (interactive)
+  (maple-explorer--fold t))
 
 (defun maple-explorer-fold()
   "Toggle fold at point."
@@ -229,14 +234,16 @@
   (interactive)
   (maple-explorer-with
     (button-put button 'face 'maple-explorer-mark-face)
-    (button-put button 'maple-explorer-mark t)))
+    (button-put button 'maple-explorer-mark t)
+    (forward-line)))
 
 (defun maple-explorer-unmark()
   "Mark the POINT value."
   (interactive)
   (maple-explorer-with
     (button-put button 'face (or (plist-get info :face) 'maple-explorer-item-face))
-    (button-put button 'maple-explorer-mark nil)))
+    (button-put button 'maple-explorer-mark nil)
+    (forward-line)))
 
 (defun maple-explorer-unmark-all()
   "UnMark all value."
@@ -378,6 +385,8 @@
            (maple-explorer--with-buffer buffer
              (erase-buffer)
              (maple-explorer-insert items)
+             (unless (zerop (buffer-size))
+               (delete-region (- (point-max) 1) (point-max)))
              (when first
                (select-window (display-buffer buffer '(,display-function)))
                (,mode-function)))

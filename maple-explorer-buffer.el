@@ -64,7 +64,7 @@
   (maple-explorer-list
    (buffer-list)
    'maple-explorer-buffer-face
-   'maple-explorer-buffer-info maple-explorer-buffer-filter-function maple-explorer-buffer-group-function))
+   'maple-explorer-buffer-info))
 
 (defun maple-explorer-buffer-click()
   "Open buffer on POINT."
@@ -72,8 +72,8 @@
   (maple-explorer-with (pop-to-buffer (plist-get info :value))))
 
 (maple-explorer-define buffer
-  (setq maple-explorer-buffer-group-function 'maple-explorer-buffer-group)
-  (setq maple-explorer-buffer-filter-function 'maple-explorer-buffer-filter))
+  (add-to-list 'maple-explorer-group-alist '(buffer . maple-explorer-buffer-group))
+  (add-to-list 'maple-explorer-filter-alist '(buffer . maple-explorer-buffer-filter)))
 
 (provide 'maple-explorer-buffer)
 ;;; maple-explorer-buffer.el ends here

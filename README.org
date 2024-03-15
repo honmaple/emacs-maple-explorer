@@ -16,5 +16,5 @@
        :quelpa (:fetcher github :repo "honmaple/emacs-maple-explorer")
        :commands (maple-explorer-file maple-explorer-buffer maple-explorer-imenu maple-explorer-recentf)
        :config
-       (setq maple-explorer-file-display-alist '((side . left) (slot . -1))))
+       (add-to-list 'maple-explorer-display-alist '(file . ((side . left) (slot . -1)))))
    #+end_src

@@ -32,11 +32,6 @@
 (require 'maple-explorer-project)
 (require 'maple-explorer-search)
 
-;; (setq all-the-icons-icon-alist
-;;       (append
-;;        (butlast all-the-icons-icon-alist)
-;;        (list '("." all-the-icons-octicon "file-text" :v-adjust 0.0 :face all-the-icons-cyan))))
-
 (defun maple-explorer-icon (str icon)
   "The ICON of maple-explorer STR."
   (format "%s %s" (propertize "\t" 'display icon) str))
@@ -93,34 +88,21 @@
          name (if (maple-explorer--is-open info) (all-the-icons-faicon "folder-open") (all-the-icons-faicon "folder")))
       (maple-explorer-icon (file-name-nondirectory value) (all-the-icons-icon-for-file value)))))
 
-(defvar maple-explorer-file-name-function-local)
-(defvar maple-explorer-imenu-name-function-local)
-(defvar maple-explorer-buffer-name-function-local)
-(defvar maple-explorer-recentf-name-function-local)
-(defvar maple-explorer-project-name-function-local)
-
 ;;;###autoload
 (define-minor-mode maple-explorer-icon-mode
-  "maple explorer icon mode"
+  "Maple explorer icon mode."
   :group      'maple-explorer
   :global     t
-  (if maple-explorer-icon-mode
-      (setq maple-explorer-file-name-function-local maple-explorer-file-name-function
-            maple-explorer-imenu-name-function-local maple-explorer-imenu-name-function
-            maple-explorer-buffer-name-function-local maple-explorer-buffer-name-function
-            maple-explorer-recentf-name-function-local maple-explorer-recentf-name-function
-            maple-explorer-project-name-function-local maple-explorer-project-name-function
-
-            maple-explorer-file-name-function 'maple-explorer-icon-file-name
-            maple-explorer-imenu-name-function 'maple-explorer-icon-imenu-name
-            maple-explorer-buffer-name-function 'maple-explorer-icon-buffer-name
-            maple-explorer-recentf-name-function 'maple-explorer-icon-recentf-name
-            maple-explorer-project-name-function 'maple-explorer-icon-file-name)
-    (setq maple-explorer-file-name-function maple-explorer-file-name-function-local
-          maple-explorer-imenu-name-function maple-explorer-imenu-name-function-local
-          maple-explorer-buffer-name-function maple-explorer-buffer-name-function-local
-          maple-explorer-recentf-name-function maple-explorer-recentf-name-function-local
-          maple-explorer-project-name-function maple-explorer-project-name-function-local)))
+  (let ((funcs '((file . maple-explorer-icon-file-name)
+                 (imenu . maple-explorer-icon-imenu-name)
+                 (buffer . maple-explorer-icon-buffer-name)
+                 (recentf . maple-explorer-icon-recentf-name)
+                 (project . maple-explorer-icon-file-name))))
+    (if maple-explorer-icon-mode
+        (dolist (func funcs)
+          (add-to-list 'maple-explorer-name-alist func))
+      (dolist (func funcs)
+        (setq maple-explorer-name-alist (delete func maple-explorer-name-alist))))))
 
 (provide 'maple-explorer)
 ;;; maple-explorer.el ends here

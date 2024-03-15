@@ -45,6 +45,7 @@
           :face 'maple-explorer-project-face
           :click 'maple-explorer-fold
           :children (lambda() (let ((maple-explorer-file-show-updir-line nil)
+                                    (maple-explorer-kind 'file)
                                     (projectile-mode nil)
                                     (default-directory name))
                                 (maple-explorer-file-list)))
@@ -57,12 +58,9 @@
     (maple-explorer-list
      (projectile-open-projects)
      'maple-explorer-project-face
-     'maple-explorer-project-info
-     maple-explorer-project-filter-function
-     maple-explorer-project-group-function)))
+     'maple-explorer-project-info)))
 
-(maple-explorer-define project
-  (setq maple-explorer-project-name-function maple-explorer-file-name-function))
+(maple-explorer-define project)
 
 (provide 'maple-explorer-project)
 ;;; maple-explorer-project.el ends here

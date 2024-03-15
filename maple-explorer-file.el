@@ -112,7 +112,7 @@
   "Get list ISROOT."
   (let* ((dir   (maple-explorer-file-find-dir))
          (files (cl-loop for f in (directory-files dir)
-                         when (funcall maple-explorer-file-filter-function f)
+                         when (funcall (maple-explorer--alist maple-explorer-filter-alist) f)
                          collect (maple-explorer-file-info (if (or (string= f ".") (string= f "..")) f (expand-file-name f dir))))))
     (if isroot
         (list :isroot t
@@ -225,10 +225,10 @@
     (add-to-list 'maple-explorer-opened-list dir)
     (maple-explorer-file-refresh)))
 
-(defun maple-explorer-file-right-menu()
+(defun maple-explorer-file-menu()
   "Explorer file right menu."
   (easy-menu-create-menu
-   'maple-explorer-file-right-menu
+   'maple-explorer-file-menu
    (list (vector "New" 'maple-explorer-file-create)
          ["--" #'ignore t]
          (vector "Open" 'maple-explorer-file-open)
@@ -255,8 +255,9 @@
     (funcall func first)))
 
 (maple-explorer-define file
-  (setq maple-explorer-file-filter-function 'maple-explorer-file-filter
-        maple-explorer-file-right-menu-function 'maple-explorer-file-right-menu)
+  (add-to-list 'maple-explorer-menu-alist '(file . maple-explorer-file-menu))
+  (add-to-list 'maple-explorer-filter-alist '(file . maple-explorer-file-filter))
+  (add-to-list 'maple-explorer-display-alist '(file . ((side . left) (slot . -1))))
   (let ((map maple-explorer-file-mode-map))
     (define-key map (kbd "m") 'maple-explorer-mark-or-unmark)
     (define-key map (kbd "u") 'maple-explorer-unmark)

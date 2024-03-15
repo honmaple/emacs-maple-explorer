@@ -38,6 +38,31 @@
   :type 'integer
   :group 'maple-explorer)
 
+(defcustom maple-explorer-name-alist '((t . maple-explorer-name))
+  "Explorer name format function."
+  :type '(alist :key-type symbol :value-type function)
+  :group 'maple-explorer)
+
+(defcustom maple-explorer-menu-alist '()
+  "Display right menu."
+  :type '(alist :key-type symbol :value-type function)
+  :group 'maple-explorer)
+
+(defcustom maple-explorer-group-alist '()
+  "Display group."
+  :type '(alist :key-type symbol :value-type function)
+  :group 'maple-explorer)
+
+(defcustom maple-explorer-filter-alist '()
+  "Display filter."
+  :type '(alist :key-type symbol :value-type function)
+  :group 'maple-explorer)
+
+(defcustom maple-explorer-display-alist '((t . ((side . right) (slot . -1))))
+  "Window display alist."
+  :type '(alist :key-type symbol :value-type function)
+  :group 'maple-explorer)
+
 (defface maple-explorer-face
   '((t (:inherit font-lock-type-face)))
   "Default face for maple-explorer.")
@@ -50,9 +75,13 @@
   '((t (:inherit font-lock-variable-name-face)))
   "Default item face for maple-explorer.")
 
+(defvar-local maple-explorer-kind nil)
 (defvar-local maple-explorer-opened-list nil)
 (defvar-local maple-explorer-closed-list nil)
-(defvar-local maple-explorer-name-function nil)
+
+(defun maple-explorer--alist (alist &optional default)
+  "Get value of TYPE within ALIST DEFAULT."
+  (or (cdr (or (assq maple-explorer-kind alist) (assq t alist))) default))
 
 (defun maple-explorer--is-open(info)
   "Check INFO is open, nil mean open."
@@ -89,7 +118,11 @@
 
 (defun maple-explorer-list(lists &optional face info-function filter-function group-function)
   "LISTS &OPTIONAL FACE INFO-FUNCTION FILTER-FUNCTION GROUP-FUNCTION."
-  (let ((table   (make-hash-table :test 'equal)) children)
+  (unless group-function
+    (setq group-function (maple-explorer--alist maple-explorer-group-alist)))
+  (unless filter-function
+    (setq filter-function (maple-explorer--alist maple-explorer-filter-alist)))
+  (let ((table (make-hash-table :test 'equal)) children)
     (dolist (child lists)
       (when (or (not filter-function) (funcall filter-function child))
         (let ((group (when group-function (funcall group-function child)))
@@ -139,18 +172,16 @@
 
 (defun maple-explorer-name(info)
   "Default name format of INFO."
-  (if maple-explorer-name-function
-      (funcall maple-explorer-name-function info)
-    (let ((isroot   (plist-get info :isroot))
-          (name     (plist-get info :name))
-          (children (plist-get info :children)))
-      (if (and (not isroot) children)
-          (format
-           "%s %s"
-           (if (maple-explorer--is-open info)
-               (car maple-explorer-arrow) (cdr maple-explorer-arrow))
-           name)
-        name))))
+  (let ((isroot   (plist-get info :isroot))
+        (name     (plist-get info :name))
+        (children (plist-get info :children)))
+    (if (and (not isroot) children)
+        (format
+         "%s %s"
+         (if (maple-explorer--is-open info)
+             (car maple-explorer-arrow) (cdr maple-explorer-arrow))
+         name)
+      name)))
 
 (defun maple-explorer-insert(info &optional indent)
   "Insert INFO &OPTIONAL INDENT."
@@ -161,7 +192,7 @@
         (indent   (or indent 0)))
     (when name
       (insert-button
-       (format "%s%s" (make-string indent ?\s) (maple-explorer-name info))
+       (format "%s%s" (make-string indent ?\s) (funcall (maple-explorer--alist maple-explorer-name-alist) info))
        'action `(lambda (_) (interactive "e") (call-interactively ',click))
        'follow-link t
        'maple-explorer info
@@ -271,14 +302,9 @@
          (finish-hook (intern (format "%s-finish-hook" prefix)))
 
          (mode-map (intern (format "%s-mode-map" prefix)))
-         (name-func (intern (format "%s-name-function" prefix)))
-         (group-func (intern (format "%s-group-function" prefix)))
-         (filter-func (intern (format "%s-filter-function" prefix)))
-         (right-menu-func (intern (format "%s-right-menu-function" prefix)))
          (auto-resize (intern (format "%s-autoresize" prefix)))
          (buffer-name (intern (format "%s-buffer" prefix)))
-         (buffer-width (intern (format "%s-width" prefix)))
-         (display-alist (intern (format "%s-display-alist" prefix))))
+         (buffer-width (intern (format "%s-width" prefix))))
     `(progn
        (defcustom ,buffer-name ,(format "*%s*" prefix)
          "Buffer name."
@@ -290,34 +316,9 @@
          :type 'cons
          :group ',togg-function)
 
-       (defcustom ,display-alist '((side . right) (slot . -1))
-         "Window display alist."
-         :type '(cons)
-         :group 'togg-function)
-
        (defcustom ,auto-resize t
          "Whether auto resize window when item's length is long."
          :type 'boolean
-         :group ',togg-function)
-
-       (defcustom ,name-func nil
-         "Explorer name format function."
-         :type 'function
-         :group ',togg-function)
-
-       (defcustom ,filter-func nil
-         "Explorer filter function."
-         :type 'function
-         :group ',togg-function)
-
-       (defcustom ,group-func nil
-         "Explorer group function."
-         :type 'function
-         :group ',togg-function)
-
-       (defcustom ,right-menu-func nil
-         "Explorer right menu function."
-         :type 'function
          :group ',togg-function)
 
        (defcustom ,init-hook nil
@@ -350,7 +351,7 @@
 
        (defun ,display-function(buffer _alist)
          "Explorer window display function with BUFFER _ALIST."
-         (display-buffer-in-side-window buffer ,display-alist))
+         (display-buffer-in-side-window buffer (maple-explorer--alist maple-explorer-display-alist)))
 
        (defun ,show-function()
          "Show explorer window."
@@ -377,7 +378,7 @@
        (defun ,refresh-function(&optional first)
          "Refresh explorer buffer when FIRST enable mode."
          (interactive)
-         (let* ((maple-explorer-name-function ,name-func)
+         (let* ((maple-explorer-kind ',name)
                 (items  (,list-function t))
                 (buffer ,buffer-name))
            (when (or (not items) (not (plist-get items :children)))
@@ -395,14 +396,15 @@
        (defun ,right-click-function(event)
          "Right click EVENT."
          (interactive "e")
-         (unless ,right-menu-func (error "No right menu defined!"))
-         (let* ((point  (event-start event))
-                (menu   (funcall ,right-menu-func))
-                (choice (x-popup-menu event menu)))
-           (when choice
-             (with-selected-window (posn-window point)
-               (goto-char (posn-point point))
-               (call-interactively (lookup-key menu (apply 'vector choice)))))))
+         (let ((menu-func (maple-explorer--alist maple-explorer-menu-alist)))
+           (unless menu-func (error "No right menu defined!"))
+           (let* ((point  (event-start event))
+                  (menu   (funcall menu-func))
+                  (choice (x-popup-menu event menu)))
+             (when choice
+               (with-selected-window (posn-window point)
+                 (goto-char (posn-point point))
+                 (call-interactively (lookup-key menu (apply 'vector choice))))))))
 
        (defvar ,mode-map
          (let ((map (make-sparse-keymap)))
@@ -419,7 +421,7 @@
                cursor-type nil
                cursor-in-non-selected-windows nil)
 
-         (setq maple-explorer-name-function ,name-func)
+         (setq maple-explorer-kind ',name)
 
          (when (bound-and-true-p evil-mode)
            (evil-make-overriding-map ,mode-map 'normal)))

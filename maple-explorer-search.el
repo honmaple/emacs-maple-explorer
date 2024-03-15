@@ -74,7 +74,7 @@
   (maple-explorer-list
    (split-string (shell-command-to-string (format maple-explorer-search-command maple-explorer-search-keyword)) "\n")
    'maple-explorer-search-face
-   'maple-explorer-search-info maple-explorer-search-filter-function maple-explorer-search-group-function))
+   'maple-explorer-search-info))
 
 (defun maple-explorer-search-click()
   "Open buffer on POINT."
@@ -90,9 +90,9 @@
   (setq maple-explorer-search-keyword nil))
 
 (maple-explorer-define search
-  (setq maple-explorer-search-group-function 'maple-explorer-search-group)
-  (setq maple-explorer-search-filter-function 'maple-explorer-search-filter)
-  (setq maple-explorer-search-display-alist '((side . left) (slot . -1)))
+  (add-to-list 'maple-explorer-group-alist '(search . maple-explorer-search-group))
+  (add-to-list 'maple-explorer-filter-alist '(search . maple-explorer-search-filter))
+  (add-to-list 'maple-explorer-display-alist '(search . ((side . left) (slot . -1))))
   (add-hook 'maple-explorer-search-finish-hook 'maple-explorer-search--finish))
 
 (defun maple-explorer-search(keyword)

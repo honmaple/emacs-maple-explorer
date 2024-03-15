@@ -66,7 +66,7 @@
    (maple-explorer-recentf-subseq
     (progn (unless recentf-mode (recentf-mode)) recentf-list))
    'maple-explorer-recentf-face
-   'maple-explorer-recentf-info maple-explorer-recentf-filter-function maple-explorer-recentf-group-function))
+   'maple-explorer-recentf-info))
 
 (defun maple-explorer-recentf-click()
   "Open recentf file at point."
@@ -74,7 +74,7 @@
   (maple-explorer-with (find-file-other-window (plist-get info :value))))
 
 (maple-explorer-define recentf
-  (setq maple-explorer-recentf-group-function 'maple-explorer-recentf-group))
+  (add-to-list 'maple-explorer-group-alist '(recentf . maple-explorer-recentf-group)))
 
 (provide 'maple-explorer-recentf)
 ;;; maple-explorer-recentf.el ends here

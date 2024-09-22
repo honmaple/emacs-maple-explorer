@@ -8,13 +8,17 @@
    #+end_src
 
    #+begin_src elisp
-     (require 'maple-explorer)
-     (when (and (display-graphic-p) *icon*) (maple-explorer-icon-mode))
+   (require 'maple-explorer)
+   (when (and (display-graphic-p) *icon*) (maple-explorer-icon-mode))
 
-     ;; with use-package
-     (use-package maple-explorer
-       :quelpa (:fetcher github :repo "honmaple/emacs-maple-explorer")
-       :commands (maple-explorer-file maple-explorer-buffer maple-explorer-imenu maple-explorer-recentf)
-       :config
-       (add-to-list 'maple-explorer-display-alist '(file . ((side . left) (slot . -1)))))
+   ;; with use-package
+   (use-package maple-explorer
+     :quelpa (:fetcher github :repo "honmaple/emacs-maple-explorer")
+     :commands (maple-explorer-file maple-explorer-buffer maple-explorer-imenu maple-explorer-recentf)
+     :config
+     (setq maple-explorer-icon 'nerd-icons)
+     ;; or
+     (setq maple-explorer-icon 'all-the-icons)
+
+     (add-to-list 'maple-explorer-display-alist '(file . ((side . left) (slot . -1)))))
    #+end_src

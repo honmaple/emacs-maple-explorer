@@ -40,14 +40,14 @@
 
 (defun maple-explorer-project-info(project)
   "PROJECT."
-  (let ((name (directory-file-name project)))
+  (let ((name (expand-file-name (directory-file-name project))))
     (list :name name
           :face 'maple-explorer-project-face
           :click 'maple-explorer-fold
           :children (lambda() (let ((maple-explorer-file-show-updir-line nil)
-                                    (maple-explorer-kind 'file)
                                     (projectile-mode nil)
                                     (default-directory name))
+                                (setq maple-explorer-kind 'file)
                                 (maple-explorer-file-list)))
           :status 'close
           :value name)))
